@@ -504,6 +504,47 @@
             unsubscribeGameListener: null 
         };
 
+        function renderGameLog() {
+            if (!gameLogDisplay) return;
+            gameLogDisplay.innerHTML = '';
+            if (gameState.gameLog.length === 0) {
+                const p = document.createElement('p');
+                p.textContent = "No hay eventos en el registro.";
+                p.classList.add('text-gray-500', 'text-center');
+                gameLogDisplay.appendChild(p);
+                return;
+            }
+            gameState.gameLog.forEach(entry => {
+                const p = document.createElement('p');
+                const date = new Date(entry.timestamp);
+                const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+                p.textContent = `[${timeString}] ${entry.text}`;
+                if (entry.type) p.classList.add(`log-${entry.type}`);
+                gameLogDisplay.appendChild(p);
+            });
+            gameLogDisplay.scrollTop = 0; // Show latest entries first
+        }
+
+        function addLogEntry(message, type) {
+            if (!gameState.gameLog) {
+                gameState.gameLog = [];
+            }
+            const newEntry = {
+                text: message,
+                type: type,
+                timestamp: new Date().toISOString()
+            };
+            gameState.gameLog.unshift(newEntry); // Add to the beginning
+            if (gameState.gameLog.length > 50) { // Keep the log size to 50
+                gameState.gameLog.pop();
+            }
+            // It's important to call renderGameLog() if it's not called immediately
+            // after every action that might use addLogEntry.
+            // For now, let's assume renderGameLog is called separately or after a batch of updates.
+            // If direct rendering is needed, uncomment the line below.
+            renderGameLog();
+        }
+
         let moveSound, attackSound, damageSound, deathSound, turnSound;
 
         function initializeSounds() {
@@ -782,7 +823,7 @@
             gameState.isAnimating = false;
             gameState.gameLog = [];
             addLogEntry("Nueva partida " + gameState.gameMode + " iniciada.", "system");
-            renderGameLog();
+            // renderGameLog(); // Now called by addLogEntry
             renderUnitRosterLocal(); 
              if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber) {
                 aiTurnIndicator.style.display = 'block';
@@ -1381,7 +1422,7 @@
 
             if (firebaseGameData.gameLog && !arraysEqual(gameState.gameLog.map(l=>l.text), firebaseGameData.gameLog.map(l=>l.text))) {
                 gameState.gameLog = [...firebaseGameData.gameLog]; 
-                renderGameLog();
+                renderGameLog(); // This is appropriate here as it's syncing the whole log
             }
             renderHighlightsAndInfo(); 
             renderUnitRosterOnline(); // Use specific roster for online
@@ -1485,9 +1526,9 @@
             gameModeInfoDisplay.textContent = `Modo: ${mode === 'vsAI' ? `VS IA (${difficulty})` : (mode === 'online' ? 'Online' : 'Local')}`;
 
             if (mode === 'local' || mode === 'vsAI') {
-                initializeLocalBoardAndUnits();
+                initializeLocalBoardAndUnits(); // Calls addLogEntry which calls renderGameLog
                 renderHighlightsAndInfo();
-                renderGameLog();
+                // renderGameLog(); // Already called
                 renderUnitRosterLocal();
             } else if (mode === 'online') {
                 // Online game start is handled by create/join logic (which calls joinGameSessionOnline)
@@ -1495,7 +1536,7 @@
                 // when the game becomes active or data is first loaded.
                 // For now, just ensure the game container is visible.
                 // The actual board setup will wait for Firestore data.
-                addLogEntry("Entrando a modo online...", "system");
+                addLogEntry("Entrando a modo online...", "system"); // Calls renderGameLog
             }
         }
         
