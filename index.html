@@ -975,9 +975,26 @@
                     else if (highlightedAction.type === 'attack') attackUnitAndAnimateLocal(actingUnitData, gameState.board[row][col]);
                 }
             } 
-            else if (unitDataOnTile && unitDataOnTile.player === gameState.currentPlayer) {
-                selectUnit(unitDataOnTile);
-                renderHighlightsAndInfo();
+            else if (unitDataOnTile) { // Check if there's a unit on the tile first
+                let canSelect = false;
+                if (gameState.gameMode === 'online') {
+                    // Online: Select if the unit's player number matches the local player's number
+                    // The overall turn check is handled at the top of onTileClick
+                    canSelect = unitDataOnTile.player === gameState.localPlayerNumber;
+                } else {
+                    // Local/AI: Select if the unit's player number matches the current turn player
+                    canSelect = unitDataOnTile.player === gameState.currentPlayer;
+                }
+
+                if (canSelect) {
+                    selectUnit(unitDataOnTile);
+                    renderHighlightsAndInfo();
+                } else {
+                    // If it's an enemy unit or not selectable for other reasons (e.g., wrong turn in local),
+                    // still clear previous selection and render.
+                    clearHighlightsAndSelection();
+                    renderHighlightsAndInfo();
+                }
             } 
             else {
                 clearHighlightsAndSelection();
