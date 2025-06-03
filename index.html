@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tácticas del Río Revuelto Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script type="module">
+        // These variables will be replaced by the Canvas environment.
+        const firebaseConfigFromEnv = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        if (!firebaseConfigFromEnv) {
+            console.error("Firebase configuration is missing. Online features will not work.");
+            // Optionally, display a message to the user in a modal or on the page
+            const body = document.querySelector('body');
+            if (body) {
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = "Error: Configuración de Firebase no encontrada. El modo online no funcionará.";
+                errorDiv.style.color = 'red';
+                errorDiv.style.textAlign = 'center';
+                errorDiv.style.padding = '20px';
+                body.prepend(errorDiv);
+            }
+        }
+        const firebaseConfig = firebaseConfigFromEnv ? JSON.parse(firebaseConfigFromEnv) : {};
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+        // Initialize Firebase
+        let app, auth, db;
+        if (firebaseConfigFromEnv) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('debug'); // Optional: for more detailed logs
+                console.log("Firebase initialized successfully");
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+            }
+        } else {
+            // Handle missing config more gracefully if needed
+        }
+
+        window.firebaseServices = { auth, db, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, runTransaction, deleteDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #1a202c; 
+            color: #e2e8f0; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            touch-action: manipulation;
+            overflow-x: hidden; 
+        }
+        .game-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.75rem; 
+            color: #63b3ed; 
+            text-shadow: 2px 2px #2c5282; 
+            margin-bottom: 1rem;
+        }
+
+        /* Menu & Lobby Styles */
+        .menu-screen, .lobby-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            background-color: #2d3748; /* gray-700 */
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            text-align: center;
+        }
+        .menu-screen h2, .lobby-screen h2 {
+            font-family: 'Press Start 2P';
+            font-size: 1.5rem;
+            color: #90cdf4; /* blue-300 */
+            margin-bottom: 1.5rem;
+        }
+        .menu-screen button, .lobby-screen button {
+            font-family: 'Press Start 2P';
+            font-size: 1rem;
+            padding: 0.8rem 1.5rem;
+            margin: 0.5rem;
+            min-width: 220px; /* Wider buttons */
+        }
+        .lobby-screen input[type="text"] {
+            font-family: 'Roboto Condensed', sans-serif;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            width: 80%;
+            max-width: 250px;
+            border-radius: 0.3rem;
+            border: 1px solid #4a5568; /* gray-600 */
+            background-color: #1a202c; /* gray-900 */
+            color: #e2e8f0; /* gray-300 */
+            text-align: center;
+        }
+        .lobby-screen p { margin-bottom: 0.5rem; }
+        .user-id-display { font-size: 0.8rem; color: #a0aec0; margin-bottom: 1rem;}
+        .game-id-display { font-weight: bold; color: #f6e05e; user-select: all; cursor: pointer; }
+
+
+        .game-container {
+            display: none; /* Hidden by default */
+            flex-direction: column; 
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px; 
+        }
+        .board-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; 
+        }
+        #gameBoard {
+            display: grid;
+            border: 2px solid #4a5568; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            position: relative; 
+        }
+        .tile {
+            width: 50px; 
+            height: 50px; 
+            border: 1px solid #2d3748; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative; 
+            overflow: hidden; 
+        }
+        .tile.grass { background-color: #38a169; } 
+        .tile.bridge { background-color: #a0aec0; } 
+        .tile.player1-spawn { background-color: #5a67d8; } 
+        .tile.player2-spawn { background-color: #e53e3e; } 
+
+        .river-canvas { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+        }
+
+        .unit {
+            width: 50px; 
+            height: 50px; 
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            position: absolute; 
+            transition: transform 0.3s ease-out, opacity 0.5s ease-out; 
+            z-index: 10;
+            box-sizing: border-box; 
+        }
+        .unit canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%;
+        }
+
+        .unit-p1 { border: 2px solid #fbd38d; } 
+        .unit-p2 { border: 2px solid #90cdf4; } 
+        
+        .selected-unit-tile {
+            outline: 3px solid #f6e05e; 
+            outline-offset: -3px;
+            box-shadow: 0 0 10px #f6e05e;
+        }
+        .possible-move::after, .possible-attack::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            opacity: 0.7;
+            z-index: 1;
+        }
+        .possible-move::after { background-color: #68d391; } 
+        .possible-attack::after { background-color: #fc8181; } 
+        
+        .unit.pulse-target { 
+            animation: pulse-red-border-unit 0.7s infinite alternate;
+        }
+        @keyframes pulse-red-border-unit {
+            from { border-color: #ef4444; box-shadow: 0 0 6px #ef4444, 0 0 3px #ef4444 inset; } 
+            to   { border-color: #f87171; box-shadow: 0 0 12px #f87171, 0 0 5px #f87171 inset; } 
+        }
+
+        .unit-damaged {
+            animation: damage-flash 0.4s ease-out;
+        }
+        @keyframes damage-flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(2.5) saturate(3); } 
+        }
+        .unit-dying {
+            opacity: 0;
+        }
+
+        .controls-area {
+            background-color: #2d3748; 
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 300px; 
+            text-align: center;
+        }
+        .info-display { margin-bottom: 0.5rem; } 
+        .info-display p { margin: 0.3rem 0; font-size: 1.1rem; }
+        .info-display #currentPlayerText.player1 { color: #fbd38d; } 
+        .info-display #currentPlayerText.player2 { color: #90cdf4; } 
+        .info-display #playerRoleDisplay { font-size: 0.9rem; margin-top: 0.2rem; }
+        
+        #gameLogDisplay, #unitRosterPanel {
+            margin-top: 0.75rem; 
+            padding: 0.5rem;
+            height: 220px; 
+            overflow-y: auto;
+            background-color: #1a202c; 
+            border-radius: 0.3rem;
+            border: 1px solid #4a5568;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        #gameLogDisplay p, #unitRosterPanel p {
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px dashed #4a5568;
+        }
+        #gameLogDisplay p:last-child, #unitRosterPanel p:last-child {
+            border-bottom: none;
+        }
+         #gameLogDisplay .log-move { color: #a0aec0; } 
+         #gameLogDisplay .log-attack { color: #f56565; } 
+         #gameLogDisplay .log-damage { color: #f6e05e; } 
+         #gameLogDisplay .log-death { color: #e53e3e; font-weight: bold; } 
+         #gameLogDisplay .log-turn { color: #63b3ed; font-style: italic; } 
+         #gameLogDisplay .log-system { color: #cbd5e0; font-weight: bold;} /* gray-400 */
+
+
+        #unitRosterPanel .roster-title {
+            font-weight: bold;
+            color: #90cdf4; 
+            text-align: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #4a5568;
+        }
+         #unitRosterPanel .unit-entry-p1 { color: #fbd38d; } 
+         #unitRosterPanel .unit-entry-p2 { color: #90cdf4; } 
+
+
+        button {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #4a5568; 
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+            margin-top: 0.5rem;
+        }
+        button:hover { background-color: #718096; } 
+        button:disabled { background-color: #a0aec0; cursor: not-allowed; } 
+        .restart-button, .action-button { /* General action button style */
+            background-color: #48bb78; /* green-500 */
+        }
+        .restart-button:hover, .action-button:hover {
+            background-color: #38a169; /* green-600 */
+        }
+        .secondary-button {
+             background-color: #667eea; /* indigo-500 */
+        }
+        .secondary-button:hover {
+             background-color: #5a67d8; /* indigo-600 */
+        }
+        .danger-button {
+            background-color: #f56565; /* red-500 */
+        }
+        .danger-button:hover {
+            background-color: #e53e3e; /* red-600 */
+        }
+
+
+        #selectedUnitInfo {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #4a5568;
+        }
+        #selectedUnitInfo p { margin: 0.2rem 0; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8); 
+        }
+        .modal-content {
+            background-color: #2d3748; 
+            color: #e2e8f0; 
+            margin: 10% auto; 
+            padding: 30px; 
+            border: 2px solid #63b3ed; 
+            border-radius: 0.75rem; 
+            width: 90%;
+            max-width: 550px; 
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+        }
+        .modal-content h2 { 
+            font-family: 'Press Start 2P'; 
+            font-size: 2rem; 
+            margin-bottom: 1.5rem; 
+            line-height: 1.3;
+        }
+        .modal-content .winner-player1 { color: #fbd38d; } 
+        .modal-content .winner-player2 { color: #90cdf4; } 
+
+
+        @media (min-width: 768px) { 
+            .game-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .controls-area {
+                max-width: 320px; 
+            }
+            .game-title {
+                font-size: 2.25rem;
+            }
+        }
+        @media (max-width: 400px) {
+             .tile { width: 40px; height: 40px; }
+             .unit { width: 40px; height: 40px; } 
+             .game-title { font-size: 1.5rem; }
+             .modal-content h2 { font-size: 1.5rem; }
+        }
+
+    </style>
+</head>
+<body>
+    <h1 class="game-title">Tácticas del Río Revuelto Online</h1>
+
+    <div id="authLoadingScreen" class="menu-screen">
+        <h2>Conectando...</h2>
+        <p class="user-id-display">Autenticando con Firebase...</p>
+    </div>
+    
+    <div id="mainMenuScreen" class="menu-screen" style="display: none;">
+        <h2>Multijugador Online</h2>
+        <p class="user-id-display">Tu ID de Jugador: <span id="playerUserIdDisplay"></span></p>
+        <button id="createGameBtn" class="action-button">Crear Nueva Partida</button>
+        <div class="mt-4">
+            <input type="text" id="joinGameIdInput" placeholder="ID de Partida para Unirse">
+            <button id="joinGameBtn" class="secondary-button">Unirse a Partida</button>
+        </div>
+
+       <h3>Creado por Juseph Ortiz Reyes (acmnhc@gmail.com)</h3>
+    </div>
+
+    <div id="waitingRoomScreen" class="lobby-screen" style="display: none;">
+        <h2>Sala de Espera</h2>
+        <p>ID de Partida: <strong id="waitingGameIdDisplay" class="game-id-display"></strong> (comparte esto)</p>
+        <p id="waitingStatusText">Esperando al oponente...</p>
+        <div id="playerList" class="mt-2 mb-2"></div>
+        <button id="leaveWaitingRoomBtn" class="danger-button mt-4">Salir de la Sala</button>
+    </div>
+
+
+    <div id="gameContainer" class="game-container">
+        <div class="board-area">
+            <div id="gameBoard"></div>
+            <div id="unitLayer" style="position: absolute; top: 0; left: 0; pointer-events: none;"></div>
+        </div>
+
+        <div class="controls-area">
+            <div class="info-display">
+                <p>Turno de: <span id="currentPlayerText">Jugador X</span></p>
+                <p id="playerRoleDisplay">Eres: Jugador X</p>
+                <p>Partida ID: <span id="gameIdInfoDisplay" class="text-sm text-gray-400"></span></p>
+            </div>
+            
+            <div id="selectedUnitInfo">
+                <p class="font-bold text-lg">Unidad Seleccionada:</p>
+                <p id="unitName">Ninguna</p>
+                <p>PV: <span id="unitHealth">--</span></p>
+                <p>Ataque: <span id="unitAttack">--</span></p>
+                <p>Mov: <span id="unitMovement">--</span></p>
+            </div>
+
+            <div id="unitRosterPanel">
+                <p class="roster-title">Unidades del Jugador Actual</p>
+            </div>
+
+            <div id="gameLogDisplay">
+                <p class="text-gray-500 text-center">Registro de Partida...</p>
+            </div>
+            <button id="generalLeaveGameBtn" class="w-full danger-button">Salir de la Partida</button>
+        </div>
+    </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2 id="gameOverMessage">¡Jugador X Gana!</h2>
+            <button id="modalLeaveGameBtn" class="danger-button">Volver al Menú</button>
+        </div>
+    </div>
+     <div id="notificationModal" class="modal" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 400px; background-color: #4A5568; color:white;">
+            <h3 id="notificationTitle" class="text-xl font-bold mb-3 text-yellow-300">Notificación</h3>
+            <p id="notificationMessageText" class="text-md"></p>
+            <button id="notificationOkBtn" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">OK</button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        const { auth, db, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, runTransaction, deleteDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = window.firebaseServices;
+        const initialAuthTokenFromEnv = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const appIdFromEnv = typeof __app_id !== 'undefined' ? __app_id : 'default-river-wars-online';
+
+
+        const BOARD_ROWS = 12; 
+        const BOARD_COLS = 9;  
+        const TILE_SIZE = 50; 
+        const UNIT_DIV_SIZE = TILE_SIZE;
+        const UNIT_CANVAS_SIZE = TILE_SIZE - 4; 
+        const UNIT_CANVAS_OFFSET = (UNIT_DIV_SIZE - UNIT_CANVAS_SIZE) / 2; 
+        const PIXEL_GRID_SIZE = 16; 
+
+        const RIVER_START_ROW = 5;
+        const RIVER_END_ROW = 6;
+        const BRIDGE_COL_1 = 2;
+        const BRIDGE_COL_2 = 6;
+
+        const UNIT_TYPES = { 
+            BASE: { name: 'Base', hp: 50, attack: 0, movement: 0, range: 0, class: 'base', isMobile: false, drawFunc: 'drawBase' },
+            GUERRERO: { name: 'Guerrero', hp: 20, attack: 8, movement: 2, range: 1, class: 'guerrero', isMobile: true, drawFunc: 'drawGuerrero' },
+            ARQUERO: { name: 'Arquero', hp: 15, attack: 6, movement: 2, range: 3, class: 'arquero', isMobile: true, drawFunc: 'drawArquero' },
+            GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante' }
+        };
+
+        let gameState = {
+            board: [], 
+            units: {}, // Visual elements on client
+            riverCanvases: [], 
+            riverAnimationTime: 0,
+            currentFirebaseGameData: null, // Holds the raw game data from Firestore
+            localPlayerId: null, // UID from Firebase Auth
+            localPlayerRole: null, // 'player1' or 'player2'
+            currentGameId: null,
+            selectedUnit: null, 
+            highlightedMoves: [], 
+            gameActive: false, // Game is not active until two players join
+            isAnimating: false, 
+            gameLog: [],
+            unsubscribeGameListener: null // To stop listening to Firestore updates
+        };
+
+        let moveSound, attackSound, damageSound, deathSound, turnSound;
+
+        function initializeSounds() {
+            if (typeof Tone !== 'undefined') {
+                moveSound = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.2 } }).toDestination();
+                moveSound.volume.value = -15;
+                attackSound = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.005, decay: 0.05, sustain: 0, release: 0.1 } }).toDestination();
+                attackSound.volume.value = -10;
+                damageSound = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 5, envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 } }).toDestination();
+                damageSound.volume.value = -8;
+                deathSound = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.5 } }).toDestination();
+                deathSound.volume.value = -12;
+                turnSound = new Tone.Synth({ oscillator: {type: "square"}, envelope: {attack: 0.01, decay: 0.08, sustain: 0.01, release: 0.1} }).toDestination();
+                turnSound.volume.value = -18;
+            } else { console.warn("Tone.js no está cargado."); }
+        }
+        function playSound(type, note = null) {
+            if (typeof Tone === 'undefined' || !Tone.context || Tone.context.state !== 'running') {
+                if (Tone && Tone.context && Tone.context.state !== 'running') {
+                    Tone.start().then(() => {}).catch(e => {});
+                } return; 
+            }
+            switch(type) {
+                case 'move': if(moveSound) moveSound.triggerAttackRelease(note || "C4", "8n"); break;
+                case 'attack': if(attackSound) attackSound.triggerAttackRelease("8n"); break;
+                case 'damage': if(damageSound) damageSound.triggerAttackRelease(note || "C3", "8n", Tone.now(), 0.8); break;
+                case 'death': if(deathSound) deathSound.triggerAttackRelease(note || "C2", "2n"); break;
+                case 'turn': if(turnSound) turnSound.triggerAttackRelease(note || "E5", "16n"); break;
+            }
+        }
+        
+        // UI Elements
+        const authLoadingScreen = document.getElementById('authLoadingScreen');
+        const mainMenuScreen = document.getElementById('mainMenuScreen');
+        const waitingRoomScreen = document.getElementById('waitingRoomScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        
+        const playerUserIdDisplay = document.getElementById('playerUserIdDisplay');
+        const createGameBtn = document.getElementById('createGameBtn');
+        const joinGameIdInput = document.getElementById('joinGameIdInput');
+        const joinGameBtn = document.getElementById('joinGameBtn');
+        const waitingGameIdDisplay = document.getElementById('waitingGameIdDisplay');
+        const waitingStatusText = document.getElementById('waitingStatusText');
+        const playerListDiv = document.getElementById('playerList');
+        const leaveWaitingRoomBtn = document.getElementById('leaveWaitingRoomBtn');
+
+        const gameBoardElement = document.getElementById('gameBoard');
+        const unitLayerElement = document.getElementById('unitLayer'); 
+        const currentPlayerText = document.getElementById('currentPlayerText');
+        const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+        const gameIdInfoDisplay = document.getElementById('gameIdInfoDisplay');
+        const unitNameText = document.getElementById('unitName');
+        const unitHealthText = document.getElementById('unitHealth');
+        const unitAttackText = document.getElementById('unitAttack');
+        const unitMovementText = document.getElementById('unitMovement');
+        const gameLogDisplay = document.getElementById('gameLogDisplay');
+        const unitRosterPanel = document.getElementById('unitRosterPanel');
+        const generalLeaveGameBtn = document.getElementById('generalLeaveGameBtn');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const modalLeaveGameBtn = document.getElementById('modalLeaveGameBtn');
+
+        const notificationModal = document.getElementById('notificationModal');
+        const notificationTitle = document.getElementById('notificationTitle');
+        const notificationMessageText = document.getElementById('notificationMessageText');
+        const notificationOkBtn = document.getElementById('notificationOkBtn');
+
+        function showNotification(title, message) {
+            notificationTitle.textContent = title;
+            notificationMessageText.textContent = message;
+            notificationModal.style.display = "flex"; // Use flex for centering modal content
+        }
+        notificationOkBtn.addEventListener('click', () => notificationModal.style.display = "none");
+
+
+        function createUnitDataFirebase(type, player, id, r, c) { // For initial placement in Firestore
+            const unitTypeDetails = UNIT_TYPES[type];
+            return { 
+                id: `p${player}-${type.toLowerCase()}-${id}`, type: type, player: player,
+                hp: unitTypeDetails.hp, maxHp: unitTypeDetails.hp, attack: unitTypeDetails.attack,
+                movement: unitTypeDetails.movement, range: unitTypeDetails.range,
+                isMobile: unitTypeDetails.isMobile, drawFuncKey: unitTypeDetails.drawFunc, 
+                row: r, col: c  
+            };
+        }
+        
+        function drawPixel(ctx, x, y, color, pixelSize, artOffsetX = 0, artOffsetY = 0) {
+            ctx.fillStyle = color;
+            ctx.fillRect(artOffsetX + x * pixelSize, artOffsetY + y * pixelSize, pixelSize, pixelSize);
+        }
+
+        const unitDrawFunctions = { // Same as previous version
+            drawBase: (ctx, canvasSize, isPlayer1) => {
+                const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE); 
+                const artActualWidth = PIXEL_GRID_SIZE * pSize;
+                const artOffsetX = (canvasSize - artActualWidth) / 2;
+                const artOffsetY = (canvasSize - artActualWidth) / 2; 
+
+                const wall = isPlayer1 ? '#8B572A' : '#6C7A89'; 
+                const roof = isPlayer1 ? '#CD853F' : '#95A5A6'; 
+                const detail = isPlayer1 ? '#5D4037' : '#34495E'; 
+                const shadow = '#4A3B31';
+
+                ctx.clearRect(0,0, canvasSize, canvasSize);
+
+                for (let y = 4; y < 14; y++) for (let x = 2; x < 14; x++) drawPixel(ctx, x, y, wall, pSize, artOffsetX, artOffsetY);
+                for (let x = 3; x < 13; x++) drawPixel(ctx, x, 3, roof, pSize, artOffsetX, artOffsetY); 
+                
+                for (let i = 0; i < 5; i++) { 
+                    drawPixel(ctx, 2 + i*2, 2, wall, pSize, artOffsetX, artOffsetY); 
+                    if (i < 4) drawPixel(ctx, 3 + i*2, 2, detail, pSize, artOffsetX, artOffsetY);
+                }
+                drawPixel(ctx, 12, 2, wall, pSize, artOffsetX, artOffsetY);
+
+
+                for (let y = 10; y < 13; y++) for (let x = 6; x < 10; x++) drawPixel(ctx, x, y, detail, pSize, artOffsetX, artOffsetY); 
+                
+                drawPixel(ctx, 4, 5, shadow, pSize, artOffsetX, artOffsetY); drawPixel(ctx, 11, 5, shadow, pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 4, 8, shadow, pSize, artOffsetX, artOffsetY); drawPixel(ctx, 11, 8, shadow, pSize, artOffsetX, artOffsetY);
+            },
+            drawGuerrero: (ctx, canvasSize, isPlayer1) => {
+                const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
+                const artActualWidth = PIXEL_GRID_SIZE * pSize;
+                const artOffsetX = (canvasSize - artActualWidth) / 2;
+                const artOffsetY = (canvasSize - artActualWidth) / 2;
+
+                const skin = '#FFDBAC'; const skinShadow = '#E0AC69';
+                const hair = isPlayer1 ? '#7A4E3D' : '#555555'; 
+                const armorMain = isPlayer1 ? '#B22222' : '#4169E1'; 
+                const armorAccent = isPlayer1 ? '#DC143C' : '#6495ED'; 
+                const swordBlade = '#E0E0E0'; const swordGuard = '#A0A0A0'; const swordHilt = '#6F4E37'; 
+
+                ctx.clearRect(0,0, canvasSize, canvasSize);
+
+                for(let y=2; y<6; y++) for(let x=6; x<10; x++) drawPixel(ctx, x, y, skin, pSize, artOffsetX, artOffsetY);
+                for(let x=6; x<10; x++) drawPixel(ctx, x,1,hair,pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 6,2,hair,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,2,hair,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 7,4,skinShadow,pSize, artOffsetX, artOffsetY); 
+
+                for(let y=6; y<12; y++) for(let x=5; x<11; x++) drawPixel(ctx, x, y, armorMain, pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 7,6,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 8,6,armorAccent,pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 5,7,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,7,armorAccent,pSize, artOffsetX, artOffsetY); 
+
+                for(let y=12; y<15; y++) {
+                    drawPixel(ctx, 5,y,armorMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 6,y,armorMain,pSize, artOffsetX, artOffsetY);
+                    drawPixel(ctx, 9,y,armorMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,y,armorMain,pSize, artOffsetX, artOffsetY);
+                }
+                drawPixel(ctx, 5,15,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 6,15,armorAccent,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 9,15,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,15,armorAccent,pSize, artOffsetX, artOffsetY);
+
+                drawPixel(ctx, 12, 11, swordHilt, pSize, artOffsetX, artOffsetY); drawPixel(ctx, 12, 10, swordHilt, pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 11, 9, swordGuard, pSize, artOffsetX, artOffsetY); drawPixel(ctx, 13, 9, swordGuard, pSize, artOffsetX, artOffsetY);
+                for(let i=0; i<7; i++) drawPixel(ctx, 12, 8-i, swordBlade, pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 12, 1, '#FFFFFF', pSize, artOffsetX, artOffsetY); 
+
+                const shieldMain = isPlayer1 ? '#8B0000' : '#00008B'; 
+                const shieldAccent = isPlayer1 ? '#CD5C5C' : '#ADD8E6'; 
+                for(let y=6; y<11; y++) drawPixel(ctx, 2,y,shieldMain,pSize, artOffsetX, artOffsetY);
+                for(let y=7; y<10; y++) drawPixel(ctx, 3,y,shieldMain,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 1,7,shieldMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 1,8,shieldMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 1,9,shieldMain,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 2,8,shieldAccent,pSize, artOffsetX, artOffsetY); 
+            },
+             drawArquero: (ctx, canvasSize, isPlayer1) => {
+                const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
+                const artActualWidth = PIXEL_GRID_SIZE * pSize;
+                const artOffsetX = (canvasSize - artActualWidth) / 2;
+                const artOffsetY = (canvasSize - artActualWidth) / 2;
+
+                const skin = '#FFDBAC'; const skinShadow = '#E0AC69';
+                const hair = isPlayer1 ? '#9ACD32' : '#FFD700'; 
+                const tunicMain = isPlayer1 ? '#006400' : '#483D8B'; 
+                const tunicAccent = isPlayer1 ? '#2E8B57' : '#6A5ACD'; 
+                const bowWood = '#8B4513'; const arrowFletching = '#FFF8DC'; 
+
+                ctx.clearRect(0,0, canvasSize, canvasSize);
+
+                for(let y=2; y<6; y++) for(let x=6; x<10; x++) drawPixel(ctx, x, y, skin, pSize, artOffsetX, artOffsetY);
+                for(let x=6; x<10; x++) drawPixel(ctx, x,1,hair,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 6,2,hair,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,2,hair,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 7,4,skinShadow,pSize, artOffsetX, artOffsetY);
+
+                for(let y=6; y<12; y++) for(let x=5; x<11; x++) drawPixel(ctx, x, y, tunicMain, pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 7,6,tunicAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 8,6,tunicAccent,pSize, artOffsetX, artOffsetY); 
+                
+                for(let y=12; y<15; y++) {
+                    drawPixel(ctx, 5,y,tunicMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 6,y,tunicMain,pSize, artOffsetX, artOffsetY);
+                    drawPixel(ctx, 9,y,tunicMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,y,tunicMain,pSize, artOffsetX, artOffsetY);
+                }
+                drawPixel(ctx, 5,15,tunicAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 6,15,tunicAccent,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 9,15,tunicAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,15,tunicAccent,pSize, artOffsetX, artOffsetY);
+
+                drawPixel(ctx, 3, 1, bowWood, pSize, artOffsetX, artOffsetY);
+                for(let i=0; i<12; i++) drawPixel(ctx, 4, 2+i, bowWood, pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 3, 14, bowWood, pSize, artOffsetX, artOffsetY);
+                
+                ctx.strokeStyle = '#C0C0C0'; ctx.lineWidth = pSize/2; ctx.beginPath();
+                ctx.moveTo(artOffsetX + 3.5*pSize, artOffsetY + 1.5*pSize); ctx.lineTo(artOffsetX + 3.5*pSize, artOffsetY + 14.5*pSize);
+                ctx.stroke();
+                
+                for(let i=0; i<5; i++) drawPixel(ctx, 5+i, 7, '#A0522D', pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 10, 7, '#B0B0B0', pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 4,7,arrowFletching,pSize, artOffsetX, artOffsetY);
+            },
+            drawGigante: (ctx, canvasSize, isPlayer1) => {
+                const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
+                const artActualWidth = PIXEL_GRID_SIZE * pSize;
+                const artOffsetX = (canvasSize - artActualWidth) / 2;
+                const artOffsetY = (canvasSize - artActualWidth) / 2;
+
+                const skin = isPlayer1 ? '#DEB887' : '#A9A9A9'; 
+                const skinShadow = isPlayer1 ? '#CD853F' : '#696969'; 
+                const loincloth = isPlayer1 ? '#8B4513' : '#556B2F'; 
+                const clubWood = '#A0522D'; const clubStone = '#708090'; 
+
+                ctx.clearRect(0,0, canvasSize, canvasSize);
+
+                for(let y=1; y<5; y++) for(let x=5; x<11; x++) drawPixel(ctx, x,y,skin,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 6,2,skinShadow,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,2,skinShadow,pSize, artOffsetX, artOffsetY); 
+
+                for(let y=5; y<12; y++) for(let x=1; x<15; x++) drawPixel(ctx, x,y,skin,pSize, artOffsetX, artOffsetY);
+                for(let y=5; y<12; y++) { drawPixel(ctx,1,y,skinShadow,pSize, artOffsetX, artOffsetY); drawPixel(ctx,14,y,skinShadow,pSize, artOffsetX, artOffsetY); }
+                for(let x=2; x<14; x++) drawPixel(ctx,x,11,skinShadow,pSize, artOffsetX, artOffsetY); 
+
+                for(let y=12; y<14; y++) for(let x=4; x<12; x++) drawPixel(ctx, x,y,loincloth,pSize, artOffsetX, artOffsetY);
+                
+                for(let y=14; y<16; y++) {
+                    for(let x=2; x<7; x++) drawPixel(ctx,x,y,skin,pSize, artOffsetX, artOffsetY); 
+                    for(let x=9; x<14; x++) drawPixel(ctx,x,y,skin,pSize, artOffsetX, artOffsetY); 
+                }
+                for(let x=2; x<7; x++) drawPixel(ctx,x,15,skinShadow,pSize, artOffsetX, artOffsetY);
+                for(let x=9; x<14; x++) drawPixel(ctx,x,15,skinShadow,pSize, artOffsetX, artOffsetY);
+
+                for(let y=3; y<12; y++) drawPixel(ctx, 13,y,clubWood,pSize, artOffsetX, artOffsetY); 
+                drawPixel(ctx, 14,2,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 15,2,clubStone,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 13,3,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14,3,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 15,3,clubStone,pSize, artOffsetX, artOffsetY);
+                drawPixel(ctx, 12,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 13,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14,4,clubStone,pSize, artOffsetX, artOffsetY);
+            }
+        };
+        
+        function drawRiverTile(ctx, width, height, time) {
+            const waveHeight = 4; const waveLength = 20; const speed = 0.05; const numWaves = 3;
+            const baseColor = '#3B82F6'; const highlightColor = '#60A5FA'; const shadowColor = '#2563EB'; 
+            ctx.fillStyle = baseColor; ctx.fillRect(0, 0, width, height);
+            for (let i = 0; i < numWaves; i++) {
+                ctx.beginPath();
+                const yOffset = (height / numWaves) * i + (height / (numWaves * 2)); 
+                const timeOffset = i * 0.5; 
+                for (let x = 0; x <= width; x++) {
+                    const y = yOffset + Math.sin(x / waveLength + time * speed + timeOffset) * waveHeight;
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = highlightColor; ctx.lineWidth = 3; ctx.stroke();
+                ctx.beginPath();
+                 for (let x = 0; x <= width; x++) {
+                    const y = yOffset + Math.sin(x / waveLength + time * speed + timeOffset) * waveHeight + 2; 
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = shadowColor; ctx.lineWidth = 1; ctx.stroke();
+            }
+        }
+        
+        function animateRiver() {
+            gameState.riverAnimationTime += 1;
+            gameState.riverCanvases.forEach(rCtx => {
+                if (rCtx.canvas) { 
+                    drawRiverTile(rCtx, rCtx.canvas.width, rCtx.canvas.height, gameState.riverAnimationTime);
+                }
+            });
+            requestAnimationFrame(animateRiver);
+        }
+
+        function addLogEntry(message, type = 'info') {
+            const logEntry = { text: message, type: type, timestamp: new Date().toLocaleTimeString() };
+            gameState.gameLog.unshift(logEntry); 
+            if (gameState.gameLog.length > 50) { gameState.gameLog.pop(); } // Increased log size
+            renderGameLog();
+        }
+
+        function renderGameLog() {
+            gameLogDisplay.innerHTML = '';
+            if (gameState.gameLog.length === 0) {
+                gameLogDisplay.innerHTML = '<p class="text-gray-500 text-center">Registro de Partida...</p>';
+                return;
+            }
+            gameState.gameLog.forEach(entry => {
+                const p = document.createElement('p');
+                p.textContent = `[${entry.timestamp}] ${entry.text}`;
+                p.classList.add(`log-${entry.type}`);
+                gameLogDisplay.appendChild(p);
+            });
+            gameLogDisplay.scrollTop = 0; // Scroll to top to see latest
+        }
+        
+        function renderUnitRoster() {
+            unitRosterPanel.innerHTML = ''; 
+            const title = document.createElement('p');
+            title.classList.add('roster-title');
+            const playerToShow = gameState.currentFirebaseGameData ? gameState.currentFirebaseGameData.currentPlayerId : gameState.localPlayerId;
+            const playerNumber = gameState.currentFirebaseGameData ? (playerToShow === gameState.currentFirebaseGameData.player1Id ? 1 : 2) : 1;
+            title.textContent = `Unidades del Jugador ${playerNumber}`;
+            unitRosterPanel.appendChild(title);
+
+            let unitsFound = false;
+            const unitsToDisplay = gameState.currentFirebaseGameData ? gameState.currentFirebaseGameData.units : {};
+
+            for (const unitId in unitsToDisplay) {
+                const unitData = unitsToDisplay[unitId];
+                if (unitData && unitData.player === playerNumber) { // Show units of the current player in the roster
+                    unitsFound = true;
+                    const p = document.createElement('p');
+                    p.textContent = `${UNIT_TYPES[unitData.type].name}: ${unitData.hp}/${unitData.maxHp} PV`;
+                    p.classList.add(unitData.player === 1 ? 'unit-entry-p1' : 'unit-entry-p2');
+                    unitRosterPanel.appendChild(p);
+                }
+            }
+            if (!unitsFound) {
+                 const p = document.createElement('p');
+                 p.textContent = "Ninguna unidad activa.";
+                 p.classList.add("text-gray-500", "text-center");
+                 unitRosterPanel.appendChild(p);
+            }
+             unitRosterPanel.scrollTop = 0;
+        }
+
+        function initializeBoardAndUnitsFirebase() {
+            // Only draw static tiles. Units are drawn based on Firestore data.
+            gameState.riverCanvases = []; 
+            unitLayerElement.innerHTML = ''; 
+            unitLayerElement.style.width = `${BOARD_COLS * TILE_SIZE}px`; 
+            unitLayerElement.style.height = `${BOARD_ROWS * TILE_SIZE}px`;
+
+            gameBoardElement.innerHTML = ''; 
+            gameBoardElement.style.gridTemplateColumns = `repeat(${BOARD_COLS}, ${TILE_SIZE}px)`;
+            gameBoardElement.style.gridTemplateRows = `repeat(${BOARD_ROWS}, ${TILE_SIZE}px)`;
+
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    const tile = document.createElement('div');
+                    const tileType = getTileType(r, c);
+                    tile.classList.add('tile', tileType);
+                    tile.dataset.row = r;
+                    tile.dataset.col = c;
+                    
+                    if (tileType === 'river') {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = TILE_SIZE;
+                        canvas.height = TILE_SIZE;
+                        canvas.classList.add('river-canvas');
+                        tile.appendChild(canvas);
+                        gameState.riverCanvases.push(canvas.getContext('2d'));
+                    }
+                    tile.addEventListener('click', () => onTileClick(r, c));
+                    gameBoardElement.appendChild(tile);
+                }
+            }
+            addLogEntry("Tablero inicializado para partida online.", "system");
+        }
+        
+        function createUnitElement(unitData) { // unitData from Firestore
+            if (gameState.units[unitData.id]) { // If element exists, update it (e.g. after a re-render)
+                const unitElement = gameState.units[unitData.id];
+                unitElement.__unitData = unitData; // Update internal data reference
+                // Update position if needed, though Firestore should be source of truth for position
+                unitElement.style.transform = `translate(${unitData.col * TILE_SIZE}px, ${unitData.row * TILE_SIZE}px)`;
+                // Re-draw canvas if necessary (e.g. if appearance changes based on state, though not currently)
+                const canvas = unitElement.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+                const drawFunction = unitDrawFunctions[unitData.drawFuncKey];
+                if (drawFunction) {
+                    drawFunction(ctx, UNIT_CANVAS_SIZE, unitData.player === 1);
+                }
+                return unitElement;
+            }
+
+            const unitElement = document.createElement('div');
+            unitElement.id = unitData.id;
+            unitElement.classList.add('unit', unitData.player === 1 ? 'unit-p1' : 'unit-p2');
+
+            const canvas = document.createElement('canvas');
+            canvas.width = UNIT_CANVAS_SIZE; 
+            canvas.height = UNIT_CANVAS_SIZE;
+            canvas.style.position = 'absolute';
+            canvas.style.top = `${UNIT_CANVAS_OFFSET}px`;
+            canvas.style.left = `${UNIT_CANVAS_OFFSET}px`;
+            unitElement.appendChild(canvas); 
+
+            const ctx = canvas.getContext('2d');
+            const drawFunction = unitDrawFunctions[unitData.drawFuncKey];
+            if (drawFunction) {
+                drawFunction(ctx, UNIT_CANVAS_SIZE, unitData.player === 1);
+            } else {
+                ctx.fillStyle = 'magenta'; 
+                ctx.fillRect(0,0, UNIT_CANVAS_SIZE, UNIT_CANVAS_SIZE);
+            }
+            
+            unitElement.style.transform = `translate(${unitData.col * TILE_SIZE}px, ${unitData.row * TILE_SIZE}px)`;
+            unitElement.__unitData = unitData; 
+            unitLayerElement.appendChild(unitElement);
+            gameState.units[unitData.id] = unitElement;
+            return unitElement;
+        }
+
+        function getTileType(row, col) {
+            if (row >= RIVER_START_ROW && row <= RIVER_END_ROW) {
+                if (col === BRIDGE_COL_1 || col === BRIDGE_COL_2) return 'bridge';
+                return 'river';
+            }
+            // Spawn areas are just for visual style of the tile, not for unit placement logic here
+            if (row >= BOARD_ROWS - 2) return 'player1-spawn'; 
+            if (row <= 1) return 'player2-spawn'; 
+            return 'grass';
+        }
+
+        function updateBoardFromFirestore(firebaseGameData) {
+            gameState.currentFirebaseGameData = firebaseGameData;
+            gameState.gameActive = firebaseGameData.status === 'active';
+            
+            // Update visual units based on Firestore unit data
+            unitLayerElement.innerHTML = ''; // Clear old unit elements
+            gameState.units = {}; // Reset local cache of unit elements
+
+            const newBoardState = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
+            if (firebaseGameData.units) {
+                for (const unitId in firebaseGameData.units) {
+                    const unitData = firebaseGameData.units[unitId];
+                    if (unitData && unitData.row !== undefined && unitData.col !== undefined) {
+                        newBoardState[unitData.row][unitData.col] = unitData; // Populate local board model
+                        createUnitElement(unitData); // Create/update visual element
+                    }
+                }
+            }
+            gameState.board = newBoardState; // Update local board model
+
+            if (firebaseGameData.gameLog && !arraysEqual(gameState.gameLog.map(l=>l.text), firebaseGameData.gameLog.map(l=>l.text))) {
+                gameState.gameLog = [...firebaseGameData.gameLog]; // Sync log
+                renderGameLog();
+            }
+
+            renderHighlightsAndInfo(); // Update highlights based on new state
+            renderUnitRoster();
+
+            if (!gameState.gameActive && (firebaseGameData.status.includes('_wins') || firebaseGameData.status === 'draw')) {
+                let winner = null;
+                let reason = "Partida Terminada";
+                if (firebaseGameData.status === 'player1_wins') winner = 1;
+                if (firebaseGameData.status === 'player2_wins') winner = 2;
+                if (firebaseGameData.status === 'draw') reason = "Empate (Sin Movimientos)";
+                else if (firebaseGameData.winnerReason) reason = firebaseGameData.winnerReason;
+                
+                if (winner) {
+                    showEndGameModal(winner, reason);
+                } else if (firebaseGameData.status === 'draw') {
+                     showEndGameModal(null, reason); // For draw
+                }
+            }
+        }
+
+        function arraysEqual(a, b) { // Helper to compare log arrays
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+            return true;
+        }
+
+
+        function renderHighlightsAndInfo() {
+            document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack')
+                .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack'));
+            document.querySelectorAll('.unit.pulse-target').forEach(el => el.classList.remove('pulse-target'));
+
+            if (gameState.selectedUnit) { // gameState.selectedUnit now holds unitData from Firestore via local board
+                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${gameState.selectedUnit.data.row}'][data-col='${gameState.selectedUnit.data.col}']`);
+                if (tileEl) tileEl.classList.add('selected-unit-tile');
+            }
+
+            gameState.highlightedMoves.forEach(move => {
+                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${move.row}'][data-col='${move.col}']`);
+                if (tileEl) {
+                    tileEl.classList.add(move.type === 'move' ? 'possible-move' : 'possible-attack');
+                    if (move.type === 'attack') {
+                        const targetUnitData = gameState.board[move.row][move.col];
+                        if(targetUnitData && gameState.units[targetUnitData.id]) {
+                            gameState.units[targetUnitData.id].classList.add('pulse-target');
+                        }
+                    }
+                }
+            });
+            updateInfoDisplay();
+            updateSelectedUnitInfoPanel();
+        }
+        
+        function updateSelectedUnitInfoPanel() {
+            if (gameState.selectedUnit && gameState.selectedUnit.data) {
+                const unit = gameState.selectedUnit.data;
+                const unitTypeData = UNIT_TYPES[unit.type];
+                unitNameText.textContent = `${unitTypeData.name} (J${unit.player})`;
+                unitHealthText.textContent = `${unit.hp}/${unit.maxHp}`;
+                unitAttackText.textContent = unitTypeData.attack;
+                unitMovementText.textContent = unitTypeData.movement;
+            } else {
+                unitNameText.textContent = "Ninguna";
+                unitHealthText.textContent = "--";
+                unitAttackText.textContent = "--";
+                unitMovementText.textContent = "--";
+            }
+        }
+
+        function onTileClick(row, col) {
+            if (!gameState.gameActive || gameState.isAnimating || 
+                !gameState.currentFirebaseGameData || 
+                gameState.currentFirebaseGameData.currentPlayerId !== gameState.localPlayerId) {
+                return; // Ignore clicks if not player's turn, game not active, or no Firebase data
+            }
+
+            const unitDataOnTile = gameState.board[row][col]; // Use local board model derived from Firestore
+            
+            const highlightedAction = gameState.highlightedMoves.find(m => m.row === row && m.col === col);
+            if (highlightedAction && gameState.selectedUnit) {
+                const actingUnitData = gameState.selectedUnit.data; 
+
+                if (highlightedAction.type === 'move') {
+                    // For online, this will become an update to Firestore
+                    performMoveOnline(actingUnitData, row, col);
+                } else if (highlightedAction.type === 'attack') {
+                    // For online, this will become an update to Firestore
+                    performAttackOnline(actingUnitData, gameState.board[row][col]); 
+                }
+            } 
+            else if (unitDataOnTile && unitDataOnTile.player === (gameState.localPlayerRole === 'player1' ? 1 : 2) ) {
+                // Player can only select their own units based on their role
+                selectUnit(unitDataOnTile); // selectUnit now expects unitData
+                renderHighlightsAndInfo();
+            } 
+            else {
+                clearHighlightsAndSelection();
+                renderHighlightsAndInfo();
+            }
+        }
+
+        function selectUnit(unitData) { // unitData is from gameState.board (which is from Firestore)
+            clearHighlightsAndSelection(); 
+            gameState.selectedUnit = { data: unitData }; 
+            calculatePossibleMovesAndAttacksForUnit(unitData, true); 
+        }
+
+        function clearHighlightsAndSelection() {
+            gameState.selectedUnit = null;
+            gameState.highlightedMoves = [];
+        }
+        
+        function calculatePossibleMovesAndAttacksForUnit(unitData, updateGlobalHighlights = false) {
+            const possibleActions = [];
+            if (!unitData) return possibleActions; // Guard against undefined unitData
+            const { movement, range } = UNIT_TYPES[unitData.type];
+            const startR = unitData.row;
+            const startC = unitData.col;
+
+            if (movement > 0) {
+                let queue = [{r: startR, c: startC, dist: 0}];
+                let visited = new Set([`${startR},${startC}`]);
+                
+                while(queue.length > 0) {
+                    let curr = queue.shift();
+                    if (curr.dist < movement) {
+                        const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
+                        for (const [dr, dc] of neighbors) {
+                            const nextR = curr.r + dr;
+                            const nextC = curr.c + dc;
+                            const posKey = `${nextR},${nextC}`;
+
+                            if (nextR >= 0 && nextR < BOARD_ROWS && nextC >= 0 && nextC < BOARD_COLS && !visited.has(posKey)) {
+                                const tileType = getTileType(nextR, nextC);
+                                if (tileType !== 'river' && !gameState.board[nextR][nextC]) { 
+                                    const action = {unitId: unitData.id, fromR: startR, fromC: startC, row: nextR, col: nextC, type: 'move'};
+                                    possibleActions.push(action);
+                                    if (updateGlobalHighlights) gameState.highlightedMoves.push(action);
+                                    visited.add(posKey);
+                                    queue.push({r: nextR, c: nextC, dist: curr.dist + 1});
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (range > 0) {
+                for (let r_offset = -range; r_offset <= range; r_offset++) {
+                    for (let c_offset = -range; c_offset <= range; c_offset++) {
+                        if (Math.abs(r_offset) + Math.abs(c_offset) > range) continue; 
+                        if (r_offset === 0 && c_offset === 0) continue;
+
+                        const targetR = startR + r_offset;
+                        const targetC = startC + c_offset;
+
+                        if (targetR >= 0 && targetR < BOARD_ROWS && targetC >= 0 && targetC < BOARD_COLS) {
+                            const targetUnitDataOnBoard = gameState.board[targetR][targetC];
+                            if (targetUnitDataOnBoard && targetUnitDataOnBoard.player !== unitData.player) {
+                                const action = {unitId: unitData.id, fromR: startR, fromC: startC, row: targetR, col: targetC, type: 'attack', targetId: targetUnitDataOnBoard.id};
+                                possibleActions.push(action);
+                                if (updateGlobalHighlights) gameState.highlightedMoves.push(action);
+                            }
+                        }
+                    }
+                }
+            }
+            return possibleActions;
+        }
+
+        function canPlayerMakeAnyMove(playerId, gameData) { // Pass gameData from Firestore
+            const playerNumber = gameData.player1Id === playerId ? 1 : (gameData.player2Id === playerId ? 2 : 0);
+            if (!playerNumber) return false;
+
+            for (const unitId in gameData.units) {
+                const unitData = gameData.units[unitId];
+                if (unitData && unitData.player === playerNumber && unitData.isMobile) { 
+                    // Temporarily create a local board representation for this check
+                    const tempBoard = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
+                    for (const uId in gameData.units) {
+                        const u = gameData.units[uId];
+                        if(u) tempBoard[u.row][u.col] = u;
+                    }
+                    // Check possible actions using this temp board state
+                    const possibleActions = calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, tempBoard);
+                    if (possibleActions.length > 0) return true; 
+                }
+            }
+            return false; 
+        }
+        // Helper for canPlayerMakeAnyMove to use with Firestore data structure
+        function calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, boardState) {
+            const possibleActions = [];
+            const { movement, range } = UNIT_TYPES[unitData.type];
+            const startR = unitData.row; const startC = unitData.col;
+            if (movement > 0) { /* BFS as before, but using boardState */ 
+                let q = [{r:startR,c:startC,d:0}], v=new Set([`${startR},${startC}`]);
+                while(q.length>0){let curr=q.shift();if(curr.d<movement){const n=[[-1,0],[1,0],[0,-1],[0,1]];for(const [dr,dc] of n){const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){const tt=getTileType(nr,nc);if(tt!=='river'&&!boardState[nr][nc]){possibleActions.push({type:'move'});return possibleActions;/*Early exit if any move found*/v.add(pk);q.push({r:nr,c:nc,d:curr.d+1});}}}}}
+            }
+            if (range > 0) { /* Range check as before, using boardState */
+                for(let ro=-range;ro<=range;ro++){for(let co=-range;co<=range;co++){if(Math.abs(ro)+Math.abs(co)>range||(ro===0&&co===0))continue;const tr=startR+ro,tc=startC+co;if(tr>=0&&tr<BOARD_ROWS&&tc>=0&&tc<BOARD_COLS){const tudob=boardState[tr][tc];if(tudob&&tudob.player!==unitData.player){possibleActions.push({type:'attack'});return possibleActions;/*Early exit*/}}}}
+            }
+            return possibleActions;
+        }
+
+
+        async function performMoveOnline(unitData, toR, toC) {
+            if (!gameState.currentGameId || !db) return;
+            gameState.isAnimating = true; // Prevent further clicks locally
+            
+            const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameState.currentGameId}`);
+            const newLogEntry = {
+                text: `Unidad ${UNIT_TYPES[unitData.type].name} (J${unitData.player}) se mueve de (${unitData.row},${unitData.col}) a (${toR},${toC}).`,
+                type: 'move',
+                timestamp: new Date().toISOString() // Use ISO string for server compatibility if needed
+            };
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const gameDoc = await transaction.get(gameRef);
+                    if (!gameDoc.exists()) throw "Game document does not exist!";
+                    
+                    const currentGameData = gameDoc.data();
+                    const updatedUnits = { ...currentGameData.units };
+                    const movingUnit = updatedUnits[unitData.id];
+
+                    if (!movingUnit) throw "Moving unit not found in Firestore.";
+                    if (movingUnit.player !== (gameState.localPlayerRole === 'player1' ? 1 : 2)) throw "Not your unit to move.";
+                    if (currentGameData.currentPlayerId !== gameState.localPlayerId) throw "Not your turn.";
+
+                    // Update unit's position
+                    movingUnit.row = toR;
+                    movingUnit.col = toC;
+                    
+                    const nextPlayerId = currentGameData.player1Id === gameState.localPlayerId ? currentGameData.player2Id : currentGameData.player1Id;
+                    const updatedLog = [newLogEntry, ...currentGameData.gameLog.slice(0, 49)];
+
+                    transaction.update(gameRef, {
+                        units: updatedUnits,
+                        currentPlayerId: nextPlayerId,
+                        lastMoveAt: serverTimestamp(),
+                        gameLog: updatedLog
+                    });
+                });
+                // Local animation can start after Firestore update is initiated.
+                // The onSnapshot listener will handle the final state rendering.
+                // For now, we'll let onSnapshot handle visual updates to keep it simple.
+                playSound('move', 'E4'); 
+            } catch (error) {
+                console.error("Error performing move:", error);
+                showNotification("Error de Movimiento", `No se pudo realizar el movimiento: ${error.toString()}`);
+            } finally {
+                 gameState.isAnimating = false; // Re-enable clicks after attempt
+                 clearHighlightsAndSelection(); // Clear local selection
+                 renderHighlightsAndInfo(); // Update local UI based on optimistic attempt or error
+            }
+        }
+
+        async function performAttackOnline(attackerData, targetData) {
+            if (!gameState.currentGameId || !db || !targetData) return;
+            gameState.isAnimating = true;
+
+            const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameState.currentGameId}`);
+            let attackerName = UNIT_TYPES[attackerData.type].name;
+            let targetName = UNIT_TYPES[targetData.type].name;
+            let damageDealt = UNIT_TYPES[attackerData.type].attack;
+            
+            let logEntries = [];
+            logEntries.unshift({text: `Unidad ${attackerName} (J${attackerData.player}) ataca a ${targetName} (J${targetData.player}).`, type: 'attack', timestamp: new Date().toISOString()});
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const gameDoc = await transaction.get(gameRef);
+                    if (!gameDoc.exists()) throw "Game document does not exist!";
+
+                    const currentGameData = gameDoc.data();
+                    const updatedUnits = { ...currentGameData.units };
+                    const fsAttacker = updatedUnits[attackerData.id];
+                    const fsTarget = updatedUnits[targetData.id];
+
+                    if (!fsAttacker || !fsTarget) throw "Attacker or target not found in Firestore.";
+                    if (fsAttacker.player !== (gameState.localPlayerRole === 'player1' ? 1 : 2)) throw "Not your unit to attack.";
+                    if (currentGameData.currentPlayerId !== gameState.localPlayerId) throw "Not your turn.";
+
+                    fsTarget.hp -= damageDealt;
+                    logEntries.unshift({text: `${targetName} (J${fsTarget.player}) recibe ${damageDealt} daño. PV: ${Math.max(0, fsTarget.hp)}.`, type: 'damage', timestamp: new Date().toISOString()});
+                    
+                    let newStatus = currentGameData.status;
+                    let winnerReason = currentGameData.winnerReason || "";
+
+                    if (fsTarget.hp <= 0) {
+                        logEntries.unshift({text: `¡${targetName} (J${fsTarget.player}) destruido!`, type: 'death', timestamp: new Date().toISOString()});
+                        delete updatedUnits[targetData.id]; // Remove destroyed unit
+
+                        if (fsTarget.type === 'BASE') {
+                            newStatus = fsAttacker.player === 1 ? 'player1_wins' : 'player2_wins';
+                            winnerReason = "Base Destruida";
+                        }
+                    }
+                    
+                    const nextPlayerId = currentGameData.player1Id === gameState.localPlayerId ? currentGameData.player2Id : currentGameData.player1Id;
+                    let finalNextPlayerId = nextPlayerId;
+
+                    // Check if the next player can make any move *before* updating currentPlayerId
+                    let gameShouldEndNoMoves = false;
+                    if (newStatus === 'active' && !canPlayerMakeAnyMove(nextPlayerId, { ...currentGameData, units: updatedUnits })) {
+                        newStatus = fsAttacker.player === 1 ? 'player1_wins' : 'player2_wins'; // Current attacker wins
+                        winnerReason = "Oponente sin movimientos";
+                        gameShouldEndNoMoves = true;
+                        logEntries.unshift({text: `Jugador ${fsAttacker.player} gana! Oponente (Jugador ${fsTarget.player}) no tiene movimientos.`, type: 'death', timestamp: new Date().toISOString()});
+                        finalNextPlayerId = null; // No next player if game ends
+                    }
+
+
+                    const updatedLog = [...logEntries, ...currentGameData.gameLog.slice(0, 50 - logEntries.length)];
+                    
+                    transaction.update(gameRef, {
+                        units: updatedUnits,
+                        currentPlayerId: newStatus === 'active' ? finalNextPlayerId : null,
+                        status: newStatus,
+                        winnerReason: winnerReason,
+                        lastMoveAt: serverTimestamp(),
+                        gameLog: updatedLog
+                    });
+                });
+                // Sounds are played locally based on the action attempt.
+                // Visual updates will come from onSnapshot.
+                playSound('attack');
+                // Damage/death sounds could be triggered by onSnapshot when HP changes or unit disappears.
+            } catch (error) {
+                console.error("Error performing attack:", error);
+                showNotification("Error de Ataque", `No se pudo realizar el ataque: ${error.toString()}`);
+            } finally {
+                gameState.isAnimating = false;
+                clearHighlightsAndSelection();
+                renderHighlightsAndInfo();
+            }
+        }
+        
+        function updateUnitHPDisplay(unitData) { // unitData from local gameState.board
+            if (gameState.selectedUnit && gameState.selectedUnit.data && gameState.selectedUnit.data.id === unitData.id) {
+                unitHealthText.textContent = `${Math.max(0, unitData.hp)}/${unitData.maxHp}`;
+            }
+             // Also, update the visual representation of the unit if its HP changes (e.g., a health bar)
+            const unitElement = gameState.units[unitData.id];
+            if (unitElement) {
+                // Example: Add a health bar or change opacity based on HP
+                // This part is not implemented yet but shows where it would go.
+            }
+        }
+
+        function updateInfoDisplay() {
+            if (!gameState.currentFirebaseGameData) return;
+            const gameData = gameState.currentFirebaseGameData;
+            const currentPlayerNumber = gameData.currentPlayerId === gameData.player1Id ? 1 : (gameData.currentPlayerId === gameData.player2Id ? 2 : 'N/A');
+            
+            currentPlayerText.textContent = `Jugador ${currentPlayerNumber}`;
+            currentPlayerText.className = currentPlayerNumber === 1 ? 'player1' : 'player2';
+            
+            playerRoleDisplay.textContent = `Eres: ${gameState.localPlayerRole || 'Espectador'}`;
+            gameIdInfoDisplay.textContent = gameState.currentGameId || "---";
+        }
+
+        function showEndGameModal(winner, reason) {
+            gameState.gameActive = false;
+            const messageElement = document.getElementById('gameOverMessage');
+            if (winner) {
+                messageElement.innerHTML = `¡Jugador ${winner} Gana!<br><span style="font-size: 0.8em; color: #a0aec0;">(${reason})</span>`;
+                messageElement.className = ''; 
+                messageElement.classList.add(winner === 1 ? 'winner-player1' : 'winner-player2');
+            } else { // Draw
+                 messageElement.innerHTML = `¡Empate!<br><span style="font-size: 0.8em; color: #a0aec0;">(${reason})</span>`;
+                 messageElement.className = ''; 
+            }
+            gameOverModal.style.display = 'flex';
+            playSound('death', 'C4'); 
+        }
+        
+        // --- Game Setup and Navigation ---
+        function showScreen(screenId) {
+            ['authLoadingScreen', 'mainMenuScreen', 'waitingRoomScreen', 'gameContainer', gameOverModal].forEach(el => {
+                const element = typeof el === 'string' ? document.getElementById(el) : el;
+                if (element) element.style.display = 'none';
+            });
+            const screenToShow = document.getElementById(screenId);
+            if (screenToShow) screenToShow.style.display = 'flex'; // Use flex for centering menu/lobby
+            if (screenId === 'gameContainer') gameContainer.style.display = 'flex'; // gameContainer uses its own flex setup
+        }
+
+        async function handleAuthStateChanged(user) {
+            if (user) {
+                gameState.localPlayerId = user.uid;
+                playerUserIdDisplay.textContent = user.uid;
+                console.log("Autenticado como:", user.uid);
+                showScreen('mainMenuScreen');
+            } else {
+                console.log("No autenticado, intentando iniciar sesión anónimamente...");
+                try {
+                    if (initialAuthTokenFromEnv && auth) { // Check if auth is initialized
+                        await signInWithCustomToken(auth, initialAuthTokenFromEnv);
+                        console.log("Signed in with custom token.");
+                    } else if (auth) { // Check if auth is initialized
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    } else {
+                        console.error("Firebase Auth no está inicializado.");
+                         showNotification("Error de Autenticación", "No se pudo inicializar Firebase Auth.");
+                    }
+                } catch (error) {
+                    console.error("Error en inicio de sesión anónimo/custom:", error);
+                    showNotification("Error de Autenticación", `Fallo en inicio de sesión: ${error.message}`);
+                    authLoadingScreen.innerHTML = '<h2>Error de Autenticación</h2><p>No se pudo conectar. Por favor, recarga.</p>';
+                }
+            }
+        }
+        
+        createGameBtn.addEventListener('click', async () => {
+            if (!db || !gameState.localPlayerId) {
+                showNotification("Error", "Firebase no está listo o no estás autenticado.");
+                return;
+            }
+            const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            gameState.currentGameId = gameId;
+            gameState.localPlayerRole = 'player1';
+
+            const initialUnits = {};
+            // P1 Units
+            const p1Base = createUnitDataFirebase('BASE', 1, 0, BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2)); initialUnits[p1Base.id] = p1Base;
+            const p1G1 = createUnitDataFirebase('GUERRERO', 1, 1, BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1); initialUnits[p1G1.id] = p1G1;
+            const p1A1 = createUnitDataFirebase('ARQUERO', 1, 2, BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1); initialUnits[p1A1.id] = p1A1;
+            const p1T1 = createUnitDataFirebase('GIGANTE', 1, 3, BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2)); initialUnits[p1T1.id] = p1T1;
+            // P2 Units (will be controlled by player joining)
+            const p2Base = createUnitDataFirebase('BASE', 2, 0, 0, Math.floor(BOARD_COLS / 2)); initialUnits[p2Base.id] = p2Base;
+            const p2G1 = createUnitDataFirebase('GUERRERO', 2, 1, 1, Math.floor(BOARD_COLS / 2) - 1); initialUnits[p2G1.id] = p2G1;
+            const p2A1 = createUnitDataFirebase('ARQUERO', 2, 2, 1, Math.floor(BOARD_COLS / 2) + 1); initialUnits[p2A1.id] = p2A1;
+            const p2T1 = createUnitDataFirebase('GIGANTE', 2, 3, 2, Math.floor(BOARD_COLS / 2)); initialUnits[p2T1.id] = p2T1;
+
+            const gameData = {
+                gameId: gameId,
+                player1Id: gameState.localPlayerId,
+                player2Id: null,
+                currentPlayerId: gameState.localPlayerId, // Player 1 starts
+                units: initialUnits,
+                status: 'waiting', // 'waiting', 'active', 'player1_wins', 'player2_wins', 'draw'
+                createdAt: serverTimestamp(),
+                lastMoveAt: serverTimestamp(),
+                gameLog: [{text: `Partida ${gameId} creada por Jugador 1 (${gameState.localPlayerId.substring(0,5)}...).`, type: 'system', timestamp: new Date().toISOString()}],
+                winnerReason: ""
+            };
+
+            try {
+                const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameId}`);
+                await setDoc(gameRef, gameData);
+                addLogEntry(`Partida ${gameId} creada. Esperando oponente...`, "system");
+                joinGameSession(gameId);
+            } catch (error) {
+                console.error("Error creando partida:", error);
+                showNotification("Error", `No se pudo crear la partida: ${error.message}`);
+            }
+        });
+
+        joinGameBtn.addEventListener('click', async () => {
+            const gameId = joinGameIdInput.value.trim().toUpperCase();
+            if (!gameId) {
+                showNotification("Error", "Por favor, ingresa un ID de partida.");
+                return;
+            }
+            if (!db || !gameState.localPlayerId) {
+                showNotification("Error", "Firebase no está listo o no estás autenticado.");
+                return;
+            }
+
+            const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameId}`);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const gameDoc = await transaction.get(gameRef);
+                    if (!gameDoc.exists()) {
+                        throw new Error("Partida no encontrada.");
+                    }
+                    const gameData = gameDoc.data();
+                    if (gameData.player2Id && gameData.player2Id !== gameState.localPlayerId) {
+                        throw new Error("La partida ya está llena.");
+                    }
+                    if (gameData.player1Id === gameState.localPlayerId) { // Rejoining as P1
+                        gameState.localPlayerRole = 'player1';
+                    } else if (!gameData.player2Id) { // Joining as P2
+                        transaction.update(gameRef, { 
+                            player2Id: gameState.localPlayerId,
+                            status: 'active', // Game becomes active
+                            gameLog: [ {text: `Jugador 2 (${gameState.localPlayerId.substring(0,5)}...) se ha unido.`, type: 'system', timestamp: new Date().toISOString()}, ...gameData.gameLog.slice(0,49)]
+                        });
+                        gameState.localPlayerRole = 'player2';
+                    } else if (gameData.player2Id === gameState.localPlayerId) { // Rejoining as P2
+                         gameState.localPlayerRole = 'player2';
+                    } else {
+                        throw new Error("No se pudo unir a la partida (estado inesperado).");
+                    }
+                });
+                gameState.currentGameId = gameId;
+                addLogEntry(`Te has unido a la partida ${gameId} como ${gameState.localPlayerRole}.`, "system");
+                joinGameSession(gameId);
+
+            } catch (error) {
+                console.error("Error uniéndose a partida:", error);
+                showNotification("Error al Unirse", `No se pudo unir: ${error.message}`);
+            }
+        });
+        
+        function joinGameSession(gameId) {
+            showScreen('waitingRoomScreen');
+            waitingGameIdDisplay.textContent = gameId;
+            waitingStatusText.textContent = "Cargando partida...";
+            gameIdInfoDisplay.textContent = gameId;
+
+
+            if (gameState.unsubscribeGameListener) {
+                gameState.unsubscribeGameListener(); // Unsubscribe from previous game if any
+            }
+            const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameId}`);
+            gameState.unsubscribeGameListener = onSnapshot(gameRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const gameData = docSnap.data();
+                    gameState.currentFirebaseGameData = gameData; // Crucial: update local state with Firestore data
+
+                    // Determine player role if not set (e.g., on first load of snapshot)
+                    if (!gameState.localPlayerRole) {
+                        if (gameData.player1Id === gameState.localPlayerId) gameState.localPlayerRole = 'player1';
+                        else if (gameData.player2Id === gameState.localPlayerId) gameState.localPlayerRole = 'player2';
+                    }
+                    
+                    playerListDiv.innerHTML = `Jugador 1: ${gameData.player1Id ? gameData.player1Id.substring(0,8) : '---'} <br> Jugador 2: ${gameData.player2Id ? gameData.player2Id.substring(0,8) : '(Esperando...)'}`;
+
+                    if (gameData.status === 'waiting' && gameData.player2Id === null) {
+                        waitingStatusText.textContent = "Esperando al oponente...";
+                    } else if (gameData.status === 'active') {
+                        showScreen('gameContainer');
+                        if (!gameBoardElement.hasChildNodes()) { // Initialize board visuals only once
+                            initializeBoardAndUnitsFirebase();
+                        }
+                        updateBoardFromFirestore(gameData); // This will draw units
+                        playSound('turn'); // Sound for game start/turn change
+                    } else if (gameData.status.includes('_wins') || gameData.status === 'draw') {
+                        // Game ended, update UI and show modal
+                        showScreen('gameContainer'); // Show final board state
+                         if (!gameBoardElement.hasChildNodes()) { initializeBoardAndUnitsFirebase(); }
+                        updateBoardFromFirestore(gameData); // Ensure final state is rendered
+                    }
+                } else {
+                    showNotification("Error de Partida", "La partida ya no existe.");
+                    leaveGameCleanup();
+                }
+            }, (error) => {
+                console.error("Error escuchando cambios en la partida:", error);
+                showNotification("Error de Conexión", "Se perdió la conexión con la partida.");
+                leaveGameCleanup();
+            });
+        }
+
+        function leaveGameCleanup() {
+            if (gameState.unsubscribeGameListener) {
+                gameState.unsubscribeGameListener();
+                gameState.unsubscribeGameListener = null;
+            }
+            gameState.currentGameId = null;
+            gameState.localPlayerRole = null;
+            gameState.currentFirebaseGameData = null;
+            gameState.gameActive = false;
+            unitLayerElement.innerHTML = ''; // Clear visual units
+            gameState.units = {};
+            showScreen('mainMenuScreen');
+            addLogEntry("Has salido de la partida.", "system");
+        }
+
+        leaveWaitingRoomBtn.addEventListener('click', async () => {
+            // If player 1 leaves a waiting game, delete it.
+            if (gameState.localPlayerRole === 'player1' && gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.status === 'waiting') {
+                try {
+                    const gameRef = doc(db, `artifacts/${appIdFromEnv}/public/data/river_wars_games/${gameState.currentGameId}`);
+                    await deleteDoc(gameRef);
+                    addLogEntry(`Partida ${gameState.currentGameId} eliminada.`, "system");
+                } catch (error) {
+                    console.error("Error eliminando partida:", error);
+                }
+            }
+            leaveGameCleanup();
+        });
+        generalLeaveGameBtn.addEventListener('click', leaveGameCleanup);
+        modalLeaveGameBtn.addEventListener('click', leaveGameCleanup);
+
+
+        // Initialize sounds and auth after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!db || !auth) { // Check if Firebase was initialized
+                authLoadingScreen.innerHTML = '<h2>Error de Conexión</h2><p>No se pudo inicializar Firebase. Revisa la configuración y recarga.</p>';
+                return;
+            }
+            initializeSounds();
+            onAuthStateChanged(auth, handleAuthStateChanged);
+            animateRiver(); 
+        });
+
+    </script>
+</body>
+</html>
