@@ -1152,11 +1152,11 @@
             try {
                 await runTransaction(firestoreDB, async (transaction) => {
                     const gameDoc = await transaction.get(gameRef); if (!gameDoc.exists()) throw "Game DNE!";
-                    const जीडी = gameDoc.data(); const uU = {...GD.units}; const mU = uU[unitData.id];
-                    if(!mU || mU.player !== gameState.localPlayerNumber || जीडी.currentPlayerId !== gameState.localPlayerId) throw "Invalid move.";
+                    const gd = gameDoc.data(); const uU = {...gd.units}; const mU = uU[unitData.id];
+                    if(!mU || mU.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid move.";
                     mU.row = toR; mU.col = toC;
-                    const nPId = जीडी.player1Id === gameState.localPlayerId ? जीडी.player2Id : जीडी.player1Id;
-                    const uL = [newLogEntry, ...GD.gameLog.slice(0,49)];
+                    const nPId = gd.player1Id === gameState.localPlayerId ? gd.player2Id : gd.player1Id;
+                    const uL = [newLogEntry, ...gd.gameLog.slice(0,49)];
                     transaction.update(gameRef, {units:uU, currentPlayerId:nPId, lastMoveAt:serverTimestamp(), gameLog:uL});
                 });
                 playSound('move','E4'); 
@@ -1173,24 +1173,24 @@
             try {
                 await runTransaction(firestoreDB, async (transaction) => {
                     const gameDoc = await transaction.get(gameRef); if(!gameDoc.exists()) throw "Game DNE!";
-                    const जीडी = gameDoc.data(); const uU = {...GD.units}; const fA = uU[attackerData.id]; const fT = uU[targetData.id];
-                    if(!fA || !fT || fA.player !== gameState.localPlayerNumber || जीडी.currentPlayerId !== gameState.localPlayerId) throw "Invalid attack.";
+                    const gd = gameDoc.data(); const uU = {...gd.units}; const fA = uU[attackerData.id]; const fT = uU[targetData.id];
+                    if(!fA || !fT || fA.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid attack.";
                     fT.hp -= damageDealt;
                     logEntries.unshift({text:`${targetName} (J${fT.player}) recibe ${damageDealt} daño. PV: ${Math.max(0,fT.hp)}.`,type:'damage',timestamp:new Date().toISOString()});
-                    let nS=GD.status; let wR=GD.winnerReason||"";
+                    let nS=gd.status; let wR=gd.winnerReason||"";
                     if(fT.hp<=0){
                         logEntries.unshift({text:`¡${targetName} (J${fT.player}) destruido!`,type:'death',timestamp:new Date().toISOString()});
                         delete uU[targetData.id];
                         if(fT.type==='BASE'){nS=fA.player===1?'player1_wins':'player2_wins';wR="Base Destruida";}
                     }
-                    const nPId = जीडी.player1Id === gameState.localPlayerId ? जीडी.player2Id : जीडी.player1Id;
+                    const nPId = gd.player1Id === gameState.localPlayerId ? gd.player2Id : gd.player1Id;
                     let fNPId = nPId;
-                    if(nS==='active' && !canPlayerMakeAnyMoveOnline(nPId, {...GD, units:uU})){
+                    if(nS==='active' && !canPlayerMakeAnyMoveOnline(nPId, {...gd, units:uU})){
                         nS = fA.player === 1 ? 'player1_wins' : 'player2_wins'; wR = "Oponente sin movimientos";
                         logEntries.unshift({text:`Jugador ${fA.player} gana! Oponente (Jugador ${fT.player}) no tiene movimientos.`,type:'death',timestamp:new Date().toISOString()});
                         fNPId = null;
                     }
-                    const uL = [...logEntries, ...GD.gameLog.slice(0, 50 - logEntries.length)];
+                    const uL = [...logEntries, ...gd.gameLog.slice(0, 50 - logEntries.length)];
                     transaction.update(gameRef, {units:uU, currentPlayerId:nS==='active'?fNPId:null, status:nS, winnerReason:wR, lastMoveAt:serverTimestamp(), gameLog:uL});
                 });
                 playSound('attack');
@@ -1331,7 +1331,15 @@
                     if (gd.player2Id && gd.player2Id !== gameState.localPlayerId) throw new Error("Partida llena."); // Corrected usage
                     if (gd.player1Id === gameState.localPlayerId) { gameState.localPlayerRole='player1'; gameState.localPlayerNumber=1; } // Corrected usage
                     else if (!gd.player2Id) { // Corrected usage
-                        transaction.update(gameRef, { player2Id:gameState.localPlayerId, status:'active', gameLog:[{text:`Jugador 2 (${gameState.localPlayerId.substring(0,5)}...) se unió.`,type:'system',timestamp:new Date().toISOString()}, ...gd.gameLog.slice(0,49)]}); // Corrected usage
+                        transaction.update(gameRef, {
+                            player2Id: gameState.localPlayerId,
+                            status: 'active',
+                            gameLog: firestoreFb.FieldValue.arrayUnion({
+                                text: `Jugador 2 (${gameState.localPlayerId.substring(0,5)}...) se unió.`,
+                                type: 'system',
+                                timestamp: new Date().toISOString()
+                            })
+                        });
                         gameState.localPlayerRole='player2'; gameState.localPlayerNumber=2;
                     } else if (gd.player2Id === gameState.localPlayerId) { gameState.localPlayerRole='player2'; gameState.localPlayerNumber=2; } // Corrected usage
                     else throw new Error("No se pudo unir (estado inesperado).");
