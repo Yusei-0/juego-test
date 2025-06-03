@@ -927,6 +927,18 @@
             updateSelectedUnitInfoPanel();
         }
         
+        function updateUnitHPDisplay(unitData) {
+            if (unitData && gameState.selectedUnit && gameState.selectedUnit.data && gameState.selectedUnit.data.id === unitData.id) {
+                const unitHealthText = document.getElementById('unitHealth');
+                if (unitHealthText) {
+                    unitHealthText.textContent = `${Math.max(0, unitData.hp)}/${unitData.maxHp}`;
+                }
+            }
+            // Future enhancement: If HP is displayed on the unit's canvas itself,
+            // that re-drawing logic would also be triggered here.
+            // For now, it only updates the selected unit panel.
+        }
+
         function updateSelectedUnitInfoPanel() { 
             if (gameState.selectedUnit && gameState.selectedUnit.data) {
                 const unit = gameState.selectedUnit.data;
