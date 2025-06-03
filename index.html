@@ -1353,6 +1353,7 @@
         });
         
         function joinGameSessionOnline(gameId) {
+            gameState.gameMode = 'online'; // THIS IS THE LINE TO ADD/ENSURE
             showScreen('waitingRoomScreen');
             waitingGameIdDisplay.textContent = gameId;
             waitingStatusText.textContent = "Cargando partida...";
