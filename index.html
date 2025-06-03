@@ -435,6 +435,7 @@
         // Firebase SDK imports
         let firebaseApp, firebaseAuth, firestoreDB;
         let doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, runTransaction, deleteDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken;
+        let FieldValue; // Add this line
 
         async function initializeFirebase() {
             if (firebaseConfig.apiKey) {
@@ -455,6 +456,7 @@
                     updateDoc = firestoreFb.updateDoc;
                     serverTimestamp = firestoreFb.serverTimestamp;
                     runTransaction = firestoreFb.runTransaction;
+                    FieldValue = firestoreFb.FieldValue;
                     deleteDoc = firestoreFb.deleteDoc;
                     signInAnonymously = authFb.signInAnonymously;
                     onAuthStateChanged = authFb.onAuthStateChanged;
@@ -1334,7 +1336,7 @@
                         transaction.update(gameRef, {
                             player2Id: gameState.localPlayerId,
                             status: 'active',
-                            gameLog: firestoreFb.FieldValue.arrayUnion({
+                            gameLog: FieldValue.arrayUnion({ // Changed from firestoreFb.FieldValue
                                 text: `Jugador 2 (${gameState.localPlayerId.substring(0,5)}...) se unió.`,
                                 type: 'system',
                                 timestamp: new Date().toISOString()
