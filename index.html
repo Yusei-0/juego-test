@@ -491,7 +491,7 @@
         const BRIDGE_COL_2 = 6;
 
         const UNIT_TYPES = { 
-            BASE: { name: 'Base', hp: 50, attack: 0, movement: 0, range: 0, class: 'base', isMobile: false, drawFunc: 'drawBase' },
+            BASE: { name: 'Base', hp: 25, attack: 0, movement: 0, range: 0, class: 'base', isMobile: false, drawFunc: 'drawBase' },
             GUERRERO: { name: 'Guerrero', hp: 20, attack: 8, movement: 2, range: 1, class: 'guerrero', isMobile: true, drawFunc: 'drawGuerrero' },
             ARQUERO: { name: 'Arquero', hp: 15, attack: 6, movement: 2, range: 3, class: 'arquero', isMobile: true, drawFunc: 'drawArquero' },
             GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante' }
@@ -988,14 +988,14 @@
                     canSelect = unitDataOnTile.player === gameState.currentPlayer;
                 }
 
-                if (canSelect) {
-                    selectUnit(unitDataOnTile);
+                if (canSelect) { // Unit is selectable for actions
+                    selectUnit(unitDataOnTile); // selectUnit populates highlightedMoves
                     renderHighlightsAndInfo();
-                } else {
-                    // If it's an enemy unit or not selectable for other reasons (e.g., wrong turn in local),
-                    // still clear previous selection and render.
-                    clearHighlightsAndSelection();
-                    renderHighlightsAndInfo();
+                } else { // Unit is not selectable for actions (e.g., an enemy unit)
+                    clearHighlightsAndSelection(); // Clear any previous action highlights and selected unit
+                    gameState.selectedUnit = { data: unitDataOnTile }; // Select the new unit for viewing
+                    // gameState.highlightedMoves remains empty (or whatever clearHighlightsAndSelection set it to)
+                    renderHighlightsAndInfo(); // Update UI to show new selection and no action highlights
                 }
             } 
             else {
