@@ -241,7 +241,11 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
 
     if (firebaseGameData.gameLog && !arraysEqual(gameState.gameLog.map(l=>l.text), firebaseGameData.gameLog.map(l=>l.text))) {
         gameState.gameLog = [...firebaseGameData.gameLog];
-        addLogEntry(gameState, "Sincronizando registro de partida...", "system");
+        // Sync with the game-log component
+        const gameLogComp = document.getElementById('gameLogElement');
+        if (gameLogComp && typeof gameLogComp.setEntries === 'function') {
+            gameLogComp.setEntries(gameState.gameLog); // Assumes gameState.gameLog is newest first
+        }
     }
     renderHighlightsAndInfo(gameState);
     renderUnitRosterOnline(gameState);

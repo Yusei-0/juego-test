@@ -18,10 +18,7 @@
     </div>
     
     <div id="mainMenuScreen" class="menu-screen" style="display: none;">
-        <h2>Modo de Juego</h2>
-        <button id="localMultiplayerBtn" class="action-button">Multijugador Local</button>
-        <button id="vsAIBtn" class="action-button">VS IA</button>
-        <button id="onlineMultiplayerBtn" class="action-button">Multijugador Online</button>
+        <game-menu id="mainMenuComponent" menu-title="Modo de Juego"></game-menu>
     </div>
 
     <div id="difficultyScreen" class="menu-screen" style="display: none;">
@@ -79,9 +76,7 @@
                 <p class="roster-title">Unidades del Jugador Actual</p>
             </div>
 
-            <div id="gameLogDisplay">
-                <p class="text-gray-500 text-center">Registro de Partida...</p>
-            </div>
+            <game-log id="gameLogElement"></game-log>
             <button id="generalLeaveGameBtn" class="w-full danger-button">Salir / Volver al Menú</button>
         </div>
     </div>

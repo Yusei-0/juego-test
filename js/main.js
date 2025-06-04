@@ -3,8 +3,8 @@ import { initializeSounds } from './sound.js';
 import { animateRiver } from './graphics.js';
 import {
     authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen,
-    gameContainer, gameOverModal, localMultiplayerBtn, vsAIBtn,
-    onlineMultiplayerBtn, aiEasyBtn, aiMediumBtn, aiHardBtn, backToMainMenuBtn_Diff,
+    gameContainer, gameOverModal, /*localMultiplayerBtn, vsAIBtn, onlineMultiplayerBtn,*/ // Removed old button imports
+    aiEasyBtn, aiMediumBtn, aiHardBtn, backToMainMenuBtn_Diff,
     playerUserIdDisplay_Lobby, createGameBtn_Lobby, joinGameIdInput_Lobby,
     joinGameBtn_Lobby, backToMainMenuBtn_Lobby, leaveWaitingRoomBtn,
     generalLeaveGameBtn, modalLeaveGameBtn, notificationModal, notificationOkBtn,
@@ -16,9 +16,13 @@ import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistin
 import { onTileClick } from './gameActions.js';
 import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
+import { GameMenuComponent } from './components/GameMenu.js';
+import { GameLogComponent } from './components/GameLog.js';
 
 // Define custom components
 defineComponent('player-turn-display', PlayerTurnDisplay);
+defineComponent('game-menu', GameMenuComponent);
+defineComponent('game-log', GameLogComponent);
 
 let gameState = {
     board: [], units: {}, riverCanvases: [], riverAnimationTime: 0,
@@ -35,6 +39,32 @@ async function handleFirebaseAuthStateChanged(user) {
         if(playerUserIdDisplay_Lobby) playerUserIdDisplay_Lobby.textContent = user.uid.substring(0,12) + "...";
         console.log("Autenticado como:", user.uid);
         showScreen(mainMenuScreen.id);
+
+        // Configure and set up event listener for the main menu component
+        const mainMenuComponent = document.getElementById('mainMenuComponent');
+        if (mainMenuComponent) {
+            const mainMenuButtons = [
+                { id: 'localMultiplayerBtn', text: 'Multijugador Local', class: 'action-button' },
+                { id: 'vsAIBtn', text: 'VS IA', class: 'action-button' },
+                { id: 'onlineMultiplayerBtn', text: 'Multijugador Online', class: 'action-button' }
+            ];
+            mainMenuComponent.setAttribute('buttons', JSON.stringify(mainMenuButtons));
+
+            mainMenuComponent.addEventListener('menuaction', (event) => {
+                const buttonId = event.detail.buttonId;
+                if (buttonId === 'localMultiplayerBtn') {
+                    startGame('local');
+                } else if (buttonId === 'vsAIBtn') {
+                    showScreen(difficultyScreen.id);
+                } else if (buttonId === 'onlineMultiplayerBtn') {
+                    if (gameState.localPlayerId && playerUserIdDisplay_Lobby) {
+                        playerUserIdDisplay_Lobby.textContent = gameState.localPlayerId.substring(0,12) + "...";
+                    }
+                    showScreen(onlineLobbyScreen.id);
+                }
+            });
+        }
+
     } else {
         console.log("No autenticado, intentando iniciar sesión anónimamente...");
         try {
@@ -70,14 +100,7 @@ function startGame(mode, difficulty = null) {
 }
 
 // Event Listeners
-if(localMultiplayerBtn) localMultiplayerBtn.addEventListener('click', () => startGame('local'));
-if(vsAIBtn) vsAIBtn.addEventListener('click', () => showScreen(difficultyScreen.id)); // Pass ID
-if(onlineMultiplayerBtn) onlineMultiplayerBtn.addEventListener('click', () => {
-    if (gameState.localPlayerId && playerUserIdDisplay_Lobby) {
-         playerUserIdDisplay_Lobby.textContent = gameState.localPlayerId.substring(0,12) + "...";
-    }
-    showScreen(onlineLobbyScreen.id); // Pass ID
-});
+// Removed old button listeners for localMultiplayerBtn, vsAIBtn, onlineMultiplayerBtn
 
 if(aiEasyBtn) aiEasyBtn.addEventListener('click', (e) => startGame('vsAI', e.target.dataset.difficulty));
 if(aiMediumBtn) aiMediumBtn.addEventListener('click', (e) => startGame('vsAI', e.target.dataset.difficulty));

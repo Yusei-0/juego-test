@@ -36,7 +36,7 @@ export const unitNameText = document.getElementById('unitName');
 export const unitHealthText = document.getElementById('unitHealth');
 export const unitAttackText = document.getElementById('unitAttack');
 export const unitMovementText = document.getElementById('unitMovement');
-export const gameLogDisplay = document.getElementById('gameLogDisplay');
+// export const gameLogDisplay = document.getElementById('gameLogDisplay'); // Removed
 export const unitRosterPanel = document.getElementById('unitRosterPanel');
 export const generalLeaveGameBtn = document.getElementById('generalLeaveGameBtn');
 export const gameOverModal = document.getElementById('gameOverModal');
@@ -145,41 +145,28 @@ export function updateInfoDisplay(gameState) {
     }
 }
 
-export function renderGameLog(gameState) {
-    if (!gameLogDisplay) return;
-    gameLogDisplay.innerHTML = '';
-    if (!gameState.gameLog || gameState.gameLog.length === 0) {
-        const p = document.createElement('p');
-        p.textContent = "No hay eventos en el registro.";
-        p.classList.add('text-gray-500', 'text-center');
-        gameLogDisplay.appendChild(p);
-        return;
-    }
-    gameState.gameLog.forEach(entry => {
-        const p = document.createElement('p');
-        const date = new Date(entry.timestamp);
-        const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-        p.textContent = `[${timeString}] ${entry.text}`;
-        if (entry.type) p.classList.add(`log-${entry.type}`);
-        gameLogDisplay.appendChild(p);
-    });
-    gameLogDisplay.scrollTop = 0;
-}
+// renderGameLog function removed as the component will handle its own rendering via addEntry or setEntries.
 
 export function addLogEntry(gameState, message, type) {
-    if (!gameState.gameLog) {
-        gameState.gameLog = [];
-    }
     const newEntry = {
         text: message,
         type: type,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString() // Keep ISOString for consistency
     };
+    if (!gameState.gameLog) { // Ensure gameLog exists
+        gameState.gameLog = [];
+    }
     gameState.gameLog.unshift(newEntry);
     if (gameState.gameLog.length > 50) {
         gameState.gameLog.pop();
     }
-    renderGameLog(gameState);
+
+    const gameLogComp = document.getElementById('gameLogElement');
+    if (gameLogComp && typeof gameLogComp.addEntry === 'function') {
+        gameLogComp.addEntry(message, type); // The component itself will format the timestamp for display
+    } else {
+        console.warn('game-log component or its addEntry method not found.');
+    }
 }
 
 export function renderUnitRosterLocal(gameState) {

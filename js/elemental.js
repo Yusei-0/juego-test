@@ -44,6 +44,12 @@ export class ElementalComponent extends HTMLElement {
     $$(selector) {
         return this.shadowRoot.querySelectorAll(selector);
     }
+
+    disconnectedCallback() {
+        if (typeof this.onDestroy === 'function') {
+            this.onDestroy();
+        }
+    }
 }
 
 export function defineComponent(tagName, componentClass) {
