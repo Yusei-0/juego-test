@@ -11,6 +11,7 @@ async function initializeFirebase() {
         try {
             const fb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
             const authFb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            authFb.setLogLevel('debug'); // Enable Auth debug logging
             const firestoreFb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
             firebaseApp = fb.initializeApp(firebaseConfig);
@@ -32,7 +33,24 @@ async function initializeFirebase() {
             signInWithCustomToken = authFb.signInWithCustomToken;
 
             console.log("Firebase initialized successfully for deployment.");
-            return { success: true, firebaseAuth, signInAnonymously, onAuthStateChanged };
+            return {
+                success: true,
+                firebaseApp,
+                firebaseAuth,
+                firestoreDB,
+                doc,
+                setDoc,
+                getDoc,
+                onSnapshot,
+                updateDoc,
+                serverTimestamp,
+                runTransaction,
+                arrayUnion,
+                deleteDoc,
+                signInAnonymously,
+                onAuthStateChanged,
+                signInWithCustomToken
+            };
         } catch (error) {
             console.error("Error initializing Firebase for deployment:", error);
             if (authLoadingScreen) { // Use imported authLoadingScreen

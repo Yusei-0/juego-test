@@ -69,20 +69,48 @@ async function handleFirebaseAuthStateChanged(user) {
 
     } else {
         console.log("No autenticado, intentando iniciar sesión anónimamente...");
+
+        // Ensure firebaseInitResult and its properties are available
+        if (!firebaseInitResult || !firebaseInitResult.success) {
+            console.error("Firebase not initialized successfully. Cannot attempt anonymous sign-in.");
+            if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Crítico</h2><p>Firebase no está inicializado. No se puede intentar el inicio de sesión.</p>';
+            return;
+        }
+
+        const firebaseAuth = firebaseInitResult.firebaseAuth;
+        const signInAnonymouslyFn = firebaseInitResult.signInAnonymously;
+
+        console.log('Attempting anonymous sign-in. Auth object:', firebaseAuth);
+        console.log('signInAnonymously function type:', typeof signInAnonymouslyFn);
+        // Limiting output length for toString() for brevity in logs, ensure it's not excessively long.
+        console.log('signInAnonymously function definition (approx):', signInAnonymouslyFn ? signInAnonymouslyFn.toString().substring(0, 200) + "..." : 'undefined');
+
+        if (!firebaseAuth) {
+            console.error("Firebase Auth object is undefined before sign-in attempt.");
+            if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Crítico de Autenticación</h2><p>Firebase Auth no está disponible. Revisa la consola.</p>';
+            return;
+        }
+        if (typeof signInAnonymouslyFn !== 'function') {
+            console.error("signInAnonymously is not a function before sign-in attempt.");
+            if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Crítico de Autenticación</h2><p>La función de inicio de sesión anónimo no está disponible. Revisa la consola.</p>';
+            return;
+        }
+
         try {
-            // Ensure firebaseInitResult and its properties are available
-            if (firebaseInitResult && firebaseInitResult.success && firebaseInitResult.firebaseAuth && firebaseInitResult.signInAnonymously) {
-                console.log("firebaseInitResult.firebaseAuth defined:", !!firebaseInitResult.firebaseAuth);
-                console.log("firebaseInitResult.signInAnonymously defined:", !!firebaseInitResult.signInAnonymously);
-                await firebaseInitResult.signInAnonymously(firebaseInitResult.firebaseAuth);
-            } else {
-                console.error("Firebase Auth or signInAnonymously function is not available from firebaseInitResult.");
-                if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error de Autenticación</h2><p>Funciones de autenticación de Firebase no disponibles.</p>';
+            console.log("Calling signInAnonymouslyFn with firebaseAuth:", firebaseAuth);
+            await signInAnonymouslyFn(firebaseAuth);
+            // If signInAnonymouslyFn resolves, onAuthStateChanged will handle the new user state.
+            // No direct UI change here, as onAuthStateChanged is the source of truth for user state.
+            console.log("signInAnonymously call initiated. Waiting for onAuthStateChanged callback.");
+        } catch (error) { // This catch will handle errors from the signInAnonymously call itself or its promise.
+            console.error("Error during signInAnonymously call or its promise:", error);
+            if(authLoadingScreen) {
+                authLoadingScreen.innerHTML = `<h2>Error de Autenticación</h2><p>Fallo el intento de inicio de sesión anónimo: ${error.message} (Código: ${error.code}). Revisa la consola para más detalles.</p>`;
             }
-        } catch (error) {
-            console.error("Error en inicio de sesión anónimo:", error.code, error.message);
-            if(authLoadingScreen) authLoadingScreen.innerHTML = `<h2>Error de Autenticación</h2><p>Fallo en inicio de sesión (${error.code || ' desconocido'}): ${error.message}. Recarga.</p>`;
-            showNotification("Error de Autenticación", `Fallo en inicio de sesión (${error.code || 'desconocido'}): ${error.message}`);
+            // Use showNotification if available and appropriate
+            if (typeof showNotification === 'function') {
+                showNotification("Error de Autenticación", `Fallo en inicio de sesión: ${error.message} (Código: ${error.code})`);
+            }
         }
     }
 }

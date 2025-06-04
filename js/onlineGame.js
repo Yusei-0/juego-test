@@ -1,5 +1,5 @@
 import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc } from './firebase.js';
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE } from './constants.js';
+import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
 import { playSound } from './sound.js';
 import {
     showNotification, addLogEntry, clearHighlightsAndSelection, renderHighlightsAndInfo,
@@ -7,7 +7,7 @@ import {
     waitingGameIdDisplay, waitingStatusText, playerListDiv, gameIdInfoDisplay, createUnitElement
 } from './ui.js';
 import { getTileType, createUnitData } from './boardUtils.js';
-import { unitDrawFunctions, UNIT_CANVAS_SIZE } from './graphics.js';
+import { unitDrawFunctions } from './graphics.js';
 import { onTileClick } from './gameActions.js'; // Assuming onTileClick is correctly set up in main.js to be passed
 
 
