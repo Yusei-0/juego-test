@@ -1,0 +1,316 @@
+body {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+        .game-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.75rem;
+            color: #63b3ed;
+            text-shadow: 2px 2px #2c5282;
+            margin-bottom: 1rem;
+        }
+
+        /* Menu & Lobby Styles */
+        .menu-screen, .lobby-screen {
+            display: flex; /* Will be controlled by JS */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            background-color: #2d3748; /* gray-700 */
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            text-align: center;
+        }
+        .menu-screen h2, .lobby-screen h2 {
+            font-family: 'Press Start 2P';
+            font-size: 1.5rem;
+            color: #90cdf4; /* blue-300 */
+            margin-bottom: 1.5rem;
+        }
+        .menu-screen button, .lobby-screen button {
+            font-family: 'Press Start 2P';
+            font-size: 1rem;
+            padding: 0.8rem 1.5rem;
+            margin: 0.5rem;
+            min-width: 220px;
+        }
+        .lobby-screen input[type="text"] {
+            font-family: 'Roboto Condensed', sans-serif;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            width: 80%;
+            max-width: 250px;
+            border-radius: 0.3rem;
+            border: 1px solid #4a5568;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            text-align: center;
+        }
+        .lobby-screen p { margin-bottom: 0.5rem; }
+        .user-id-display { font-size: 0.8rem; color: #a0aec0; margin-bottom: 1rem;}
+        .game-id-display { font-weight: bold; color: #f6e05e; user-select: all; cursor: pointer; }
+
+
+        .game-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .board-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        #gameBoard {
+            display: grid;
+            border: 2px solid #4a5568;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .tile {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #2d3748;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile.grass { background-color: #38a169; }
+        .tile.bridge { background-color: #a0aec0; }
+        .tile.player1-spawn { background-color: #5a67d8; }
+        .tile.player2-spawn { background-color: #e53e3e; }
+
+        .river-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .unit { /* This is the div that gets positioned on the grid */
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            position: absolute;
+            transition: transform 0.3s ease-out, opacity 0.5s ease-out;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+        .unit canvas { /* The canvas for drawing the unit, centered within the .unit div */
+            display: block;
+            width: 48px; /* UNIT_CANVAS_SIZE */
+            height: 48px; /* UNIT_CANVAS_SIZE */
+        }
+
+        .unit-p1 { border: 2px solid #fbd38d; }
+        .unit-p2 { border: 2px solid #90cdf4; }
+
+        .selected-unit-tile {
+            outline: 3px solid #f6e05e;
+            outline-offset: -3px;
+            box-shadow: 0 0 10px #f6e05e;
+        }
+        .possible-move::after, .possible-attack::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            opacity: 0.7;
+            z-index: 1;
+        }
+        .possible-move::after { background-color: #68d391; }
+        .possible-attack::after { background-color: #fc8181; }
+
+        .unit.pulse-target {
+            animation: pulse-red-border-unit 0.7s infinite alternate;
+        }
+        @keyframes pulse-red-border-unit {
+            from { border-color: #ef4444; box-shadow: 0 0 6px #ef4444, 0 0 3px #ef4444 inset; }
+            to   { border-color: #f87171; box-shadow: 0 0 12px #f87171, 0 0 5px #f87171 inset; }
+        }
+
+        .unit-damaged {
+            animation: damage-flash 0.4s ease-out;
+        }
+        @keyframes damage-flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(2.5) saturate(3); }
+        }
+        .unit-dying {
+            opacity: 0;
+        }
+
+        .controls-area {
+            background-color: #2d3748;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 300px;
+            text-align: center;
+        }
+        .info-display { margin-bottom: 0.5rem; }
+        .info-display p { margin: 0.3rem 0; font-size: 1.1rem; }
+        .info-display #currentPlayerText.player1 { color: #fbd38d; }
+        .info-display #currentPlayerText.player2 { color: #90cdf4; }
+        .info-display #playerRoleDisplay { font-size: 0.9rem; margin-top: 0.2rem; }
+
+        #gameLogDisplay, #unitRosterPanel {
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            height: 250px; /* Increased height */
+            overflow-y: auto;
+            background-color: #1a202c;
+            border-radius: 0.3rem;
+            border: 1px solid #4a5568;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        #gameLogDisplay p, #unitRosterPanel p {
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px dashed #4a5568;
+        }
+        #gameLogDisplay p:last-child, #unitRosterPanel p:last-child {
+            border-bottom: none;
+        }
+         #gameLogDisplay .log-move { color: #a0aec0; }
+         #gameLogDisplay .log-attack { color: #f56565; }
+         #gameLogDisplay .log-damage { color: #f6e05e; }
+         #gameLogDisplay .log-death { color: #e53e3e; font-weight: bold; }
+         #gameLogDisplay .log-turn { color: #63b3ed; font-style: italic; }
+         #gameLogDisplay .log-system { color: #cbd5e0; font-weight: bold;}
+
+        #unitRosterPanel .roster-title {
+            font-weight: bold;
+            color: #90cdf4;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #4a5568;
+        }
+         #unitRosterPanel .unit-entry-p1 { color: #fbd38d; }
+         #unitRosterPanel .unit-entry-p2 { color: #90cdf4; }
+
+
+        button {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #4a5568;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+            margin-top: 0.5rem;
+        }
+        button:hover { background-color: #718096; }
+        button:disabled { background-color: #a0aec0; cursor: not-allowed; }
+        .restart-button, .action-button {
+            background-color: #48bb78;
+        }
+        .restart-button:hover, .action-button:hover {
+            background-color: #38a169;
+        }
+        .secondary-button {
+             background-color: #667eea;
+        }
+        .secondary-button:hover {
+             background-color: #5a67d8;
+        }
+        .danger-button {
+            background-color: #f56565;
+        }
+        .danger-button:hover {
+            background-color: #e53e3e;
+        }
+
+
+        #selectedUnitInfo {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #4a5568;
+        }
+        #selectedUnitInfo p { margin: 0.2rem 0; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+        }
+        .modal-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            margin: 10% auto;
+            padding: 30px;
+            border: 2px solid #63b3ed;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 550px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+        }
+        .modal-content h2 {
+            font-family: 'Press Start 2P';
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.3;
+        }
+        .modal-content .winner-player1 { color: #fbd38d; }
+        .modal-content .winner-player2 { color: #90cdf4; }
+
+
+        @media (min-width: 768px) {
+            .game-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .controls-area {
+                max-width: 320px;
+            }
+            .game-title {
+                font-size: 2.25rem;
+            }
+        }
+        @media (max-width: 400px) {
+             .tile { width: 40px; height: 40px; }
+             .unit { width: 40px; height: 40px; }
+             .unit canvas { width: 38px; height: 38px; }
+             .game-title { font-size: 1.5rem; }
+             .modal-content h2 { font-size: 1.5rem; }
+        }

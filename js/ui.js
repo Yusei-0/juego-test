@@ -1,0 +1,291 @@
+import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
+import { playSound } from './sound.js';
+import { unitDrawFunctions } from './graphics.js';
+
+// DOM Element References
+export const authLoadingScreen = document.getElementById('authLoadingScreen');
+export const mainMenuScreen = document.getElementById('mainMenuScreen');
+export const difficultyScreen = document.getElementById('difficultyScreen');
+export const onlineLobbyScreen = document.getElementById('onlineLobbyScreen');
+export const gameContainer = document.getElementById('gameContainer');
+export const localMultiplayerBtn = document.getElementById('localMultiplayerBtn');
+export const vsAIBtn = document.getElementById('vsAIBtn');
+export const onlineMultiplayerBtn = document.getElementById('onlineMultiplayerBtn');
+export const aiEasyBtn = document.getElementById('aiEasyBtn');
+export const aiMediumBtn = document.getElementById('aiMediumBtn');
+export const aiHardBtn = document.getElementById('aiHardBtn');
+export const backToMainMenuBtn_Diff = document.getElementById('backToMainMenuBtn_Diff');
+export const playerUserIdDisplay_Lobby = document.getElementById('playerUserIdDisplay_Lobby');
+export const createGameBtn_Lobby = document.getElementById('createGameBtn_Lobby');
+export const joinGameIdInput_Lobby = document.getElementById('joinGameIdInput_Lobby');
+export const joinGameBtn_Lobby = document.getElementById('joinGameBtn_Lobby');
+export const backToMainMenuBtn_Lobby = document.getElementById('backToMainMenuBtn_Lobby');
+export const waitingRoomScreen = document.getElementById('waitingRoomScreen');
+export const waitingGameIdDisplay = document.getElementById('waitingGameIdDisplay');
+export const waitingStatusText = document.getElementById('waitingStatusText');
+export const playerListDiv = document.getElementById('playerList');
+export const leaveWaitingRoomBtn = document.getElementById('leaveWaitingRoomBtn');
+export const gameBoardElement = document.getElementById('gameBoard');
+export const unitLayerElement = document.getElementById('unitLayer');
+export const currentPlayerText = document.getElementById('currentPlayerText');
+export const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+export const gameModeInfoDisplay = document.getElementById('gameModeInfoDisplay');
+export const gameIdInfoDisplay = document.getElementById('gameIdInfoDisplay');
+export const aiTurnIndicator = document.getElementById('aiTurnIndicator');
+export const unitNameText = document.getElementById('unitName');
+export const unitHealthText = document.getElementById('unitHealth');
+export const unitAttackText = document.getElementById('unitAttack');
+export const unitMovementText = document.getElementById('unitMovement');
+export const gameLogDisplay = document.getElementById('gameLogDisplay');
+export const unitRosterPanel = document.getElementById('unitRosterPanel');
+export const generalLeaveGameBtn = document.getElementById('generalLeaveGameBtn');
+export const gameOverModal = document.getElementById('gameOverModal');
+export const gameOverMessage = document.getElementById('gameOverMessage');
+export const modalLeaveGameBtn = document.getElementById('modalLeaveGameBtn');
+export const notificationModal = document.getElementById('notificationModal');
+export const notificationTitle = document.getElementById('notificationTitle');
+export const notificationMessageText = document.getElementById('notificationMessageText');
+export const notificationOkBtn = document.getElementById('notificationOkBtn');
+
+// Moved from localGame.js
+export function createUnitElement(gameState, unitData) {
+    const unitElement = document.createElement('div');
+    unitElement.id = unitData.id;
+    unitElement.classList.add('unit', unitData.player === 1 ? 'unit-p1' : 'unit-p2');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = UNIT_CANVAS_SIZE;
+    canvas.height = UNIT_CANVAS_SIZE;
+    unitElement.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const drawFunction = unitDrawFunctions[unitData.drawFuncKey];
+    if (drawFunction) {
+        drawFunction(ctx, UNIT_CANVAS_SIZE, unitData.player === 1);
+    } else {
+        ctx.fillStyle = 'magenta';
+        ctx.fillRect(0,0, UNIT_CANVAS_SIZE, UNIT_CANVAS_SIZE);
+    }
+
+    unitElement.style.transform = `translate(${unitData.col * TILE_SIZE}px, ${unitData.row * TILE_SIZE}px)`;
+    unitElement.__unitData = unitData;
+
+    if (unitLayerElement) {
+        unitLayerElement.appendChild(unitElement);
+    } else {
+        console.error("unitLayerElement is not available in createUnitElement");
+    }
+
+    gameState.units[unitData.id] = unitElement;
+    return unitElement;
+}
+
+// UI Functions
+export function showNotification(title, message) {
+    if(notificationTitle) notificationTitle.textContent = title;
+    if(notificationMessageText) notificationMessageText.textContent = message;
+    if(notificationModal) notificationModal.style.display = "flex";
+}
+
+export function showScreen(screenId) {
+    [authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen, waitingRoomScreen, gameContainer, gameOverModal].forEach(el => {
+        if(el) el.style.display = 'none';
+    });
+    const screenToShow = document.getElementById(screenId); // screenId is expected to be the actual ID string
+    if (screenToShow) screenToShow.style.display = 'flex';
+    if (screenId === 'gameContainer' && gameContainer) gameContainer.style.display = 'flex';
+}
+
+export function updateInfoDisplay(gameState) {
+    let currentPlayerNumberDisplay;
+    if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
+        const gd = gameState.currentFirebaseGameData;
+        currentPlayerNumberDisplay = gd.currentPlayerId === gd.player1Id ? 1 : (gd.currentPlayerId === gd.player2Id ? 2 : 'N/A');
+        if(playerRoleDisplay) playerRoleDisplay.textContent = `Eres: ${gameState.localPlayerRole || 'Espectador'} (Jugador ${gameState.localPlayerNumber})`;
+        if(gameIdInfoDisplay) gameIdInfoDisplay.textContent = gameState.currentGameId || "---";
+        if(gameIdInfoDisplay) gameIdInfoDisplay.style.display = gameState.currentGameId ? 'block' : 'none';
+    } else {
+        currentPlayerNumberDisplay = gameState.currentPlayer;
+        if(playerRoleDisplay) playerRoleDisplay.textContent = gameState.gameMode === 'vsAI' ? `Eres: Jugador 1` : `Modo Local`;
+        if(gameIdInfoDisplay) gameIdInfoDisplay.style.display = 'none';
+    }
+    if(currentPlayerText) currentPlayerText.textContent = `Jugador ${currentPlayerNumberDisplay}`;
+    if(currentPlayerText) currentPlayerText.className = currentPlayerNumberDisplay === 1 ? 'player1' : 'player2';
+    if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${gameState.gameMode === 'vsAI' ? `VS IA (${gameState.aiDifficulty})` : (gameState.gameMode === 'online' ? 'Online' : 'Local')}`;
+
+    if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber && gameState.gameActive) {
+        if(aiTurnIndicator) aiTurnIndicator.style.display = 'block';
+    } else {
+        if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
+    }
+}
+
+export function renderGameLog(gameState) {
+    if (!gameLogDisplay) return;
+    gameLogDisplay.innerHTML = '';
+    if (!gameState.gameLog || gameState.gameLog.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = "No hay eventos en el registro.";
+        p.classList.add('text-gray-500', 'text-center');
+        gameLogDisplay.appendChild(p);
+        return;
+    }
+    gameState.gameLog.forEach(entry => {
+        const p = document.createElement('p');
+        const date = new Date(entry.timestamp);
+        const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        p.textContent = `[${timeString}] ${entry.text}`;
+        if (entry.type) p.classList.add(`log-${entry.type}`);
+        gameLogDisplay.appendChild(p);
+    });
+    gameLogDisplay.scrollTop = 0;
+}
+
+export function addLogEntry(gameState, message, type) {
+    if (!gameState.gameLog) {
+        gameState.gameLog = [];
+    }
+    const newEntry = {
+        text: message,
+        type: type,
+        timestamp: new Date().toISOString()
+    };
+    gameState.gameLog.unshift(newEntry);
+    if (gameState.gameLog.length > 50) {
+        gameState.gameLog.pop();
+    }
+    renderGameLog(gameState);
+}
+
+export function renderUnitRosterLocal(gameState) {
+    if (!unitRosterPanel) return;
+    unitRosterPanel.innerHTML = '';
+    const title = document.createElement('p');
+    title.classList.add('roster-title');
+    title.textContent = `Unidades del Jugador ${gameState.currentPlayer}`;
+    unitRosterPanel.appendChild(title);
+
+    let unitsFound = false;
+    if (gameState.units) { // Check if gameState.units is defined
+        for (const unitId in gameState.units) {
+            const unitElement = gameState.units[unitId];
+            if (!unitElement || !unitElement.__unitData) continue; // Check if element and its data exist
+            const unitData = unitElement.__unitData;
+
+            if (unitData.player === gameState.currentPlayer) {
+                unitsFound = true;
+                const p = document.createElement('p');
+                p.textContent = `${UNIT_TYPES[unitData.type].name}: ${unitData.hp}/${unitData.maxHp} PV`;
+                p.classList.add(unitData.player === 1 ? 'unit-entry-p1' : 'unit-entry-p2');
+                unitRosterPanel.appendChild(p);
+            }
+        }
+    }
+    if (!unitsFound) {
+         const p = document.createElement('p');
+         p.textContent = "Ninguna unidad activa.";
+         p.classList.add("text-gray-500", "text-center");
+         unitRosterPanel.appendChild(p);
+    }
+    unitRosterPanel.scrollTop = 0;
+}
+
+export function renderUnitRosterOnline(gameState) {
+    if (!unitRosterPanel) return;
+    unitRosterPanel.innerHTML = '';
+    const title = document.createElement('p');
+    title.classList.add('roster-title');
+
+    let playerNumberForRoster = gameState.localPlayerNumber;
+    if (gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.currentPlayerId) {
+         playerNumberForRoster = gameState.currentFirebaseGameData.currentPlayerId === gameState.currentFirebaseGameData.player1Id ? 1 : 2;
+    }
+    title.textContent = `Unidades del Jugador ${playerNumberForRoster}`;
+    unitRosterPanel.appendChild(title);
+
+    let unitsFound = false;
+    const unitsToDisplay = gameState.currentFirebaseGameData ? gameState.currentFirebaseGameData.units : {};
+
+    if (unitsToDisplay) { // Check if unitsToDisplay is defined
+        for (const unitId in unitsToDisplay) {
+            const unitData = unitsToDisplay[unitId];
+            if (unitData && unitData.player === playerNumberForRoster) {
+                unitsFound = true;
+                const p = document.createElement('p');
+                p.textContent = `${UNIT_TYPES[unitData.type].name}: ${unitData.hp}/${unitData.maxHp} PV`;
+                p.classList.add(unitData.player === 1 ? 'unit-entry-p1' : 'unit-entry-p2');
+                unitRosterPanel.appendChild(p);
+            }
+        }
+    }
+    if (!unitsFound) {
+         const p = document.createElement('p');
+         p.textContent = "Ninguna unidad activa.";
+         p.classList.add("text-gray-500", "text-center");
+         unitRosterPanel.appendChild(p);
+    }
+    unitRosterPanel.scrollTop = 0;
+}
+
+export function updateSelectedUnitInfoPanel(gameState) {
+    if (gameState.selectedUnit && gameState.selectedUnit.data) {
+        const unit = gameState.selectedUnit.data;
+        const unitTypeData = UNIT_TYPES[unit.type];
+        if(unitNameText) unitNameText.textContent = `${unitTypeData.name} (J${unit.player})`;
+        if(unitHealthText) unitHealthText.textContent = `${unit.hp}/${unit.maxHp}`;
+        if(unitAttackText) unitAttackText.textContent = unitTypeData.attack;
+        if(unitMovementText) unitMovementText.textContent = unitTypeData.movement;
+    } else {
+        if(unitNameText) unitNameText.textContent = "Ninguna";
+        if(unitHealthText) unitHealthText.textContent = "--";
+        if(unitAttackText) unitAttackText.textContent = "--";
+        if(unitMovementText) unitMovementText.textContent = "--";
+    }
+}
+
+export function showEndGameModal(gameState, winner, reason) { // Added gameState for consistency, though not used directly
+    if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
+    if (winner) {
+        if(gameOverMessage) gameOverMessage.innerHTML = `¡Jugador ${winner} Gana!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
+        if(gameOverMessage) gameOverMessage.className='';
+        if(gameOverMessage) gameOverMessage.classList.add(winner===1?'winner-player1':'winner-player2');
+    } else {
+        if(gameOverMessage) gameOverMessage.innerHTML = `¡Empate!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
+        if(gameOverMessage) gameOverMessage.className='';
+    }
+    if(gameOverModal) gameOverModal.style.display='flex';
+    playSound('death','C4');
+}
+
+export function renderHighlightsAndInfo(gameState) {
+    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack')
+        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack'));
+    document.querySelectorAll('.unit.pulse-target').forEach(el => el.classList.remove('pulse-target'));
+
+    if (gameState.selectedUnit && gameState.selectedUnit.data) { // Ensure selectedUnit and its data exist
+        const unitData = gameState.selectedUnit.data;
+        if(gameBoardElement) {
+            const tileEl = gameBoardElement.querySelector(`.tile[data-row='${unitData.row}'][data-col='${unitData.col}']`);
+            if (tileEl) tileEl.classList.add('selected-unit-tile');
+        }
+    }
+
+    if (gameState.highlightedMoves) { // Ensure highlightedMoves exists
+        gameState.highlightedMoves.forEach(move => {
+            if(gameBoardElement) {
+                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${move.row}'][data-col='${move.col}']`);
+                if (tileEl) {
+                    tileEl.classList.add(move.type === 'move' ? 'possible-move' : 'possible-attack');
+                    if (move.type === 'attack' && gameState.board[move.row] && gameState.board[move.row][move.col]) {
+                        const targetUnitData = gameState.board[move.row][move.col];
+                        if(targetUnitData && gameState.units[targetUnitData.id]) {
+                            gameState.units[targetUnitData.id].classList.add('pulse-target');
+                        }
+                    }
+                }
+            }
+        });
+    }
+    updateInfoDisplay(gameState);
+    updateSelectedUnitInfoPanel(gameState);
+}
