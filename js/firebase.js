@@ -32,20 +32,21 @@ async function initializeFirebase() {
             signInWithCustomToken = authFb.signInWithCustomToken;
 
             console.log("Firebase initialized successfully for deployment.");
-            return true; // Indicate success
+            return { success: true, firebaseAuth, signInAnonymously, onAuthStateChanged };
         } catch (error) {
             console.error("Error initializing Firebase for deployment:", error);
             if (authLoadingScreen) { // Use imported authLoadingScreen
                 authLoadingScreen.innerHTML = '<h2>Error Crítico</h2><p>No se pudo inicializar Firebase. Revisa la consola.</p>';
             }
-            return false; // Indicate failure
+            return { success: false, error: error };
         }
     } else {
-        console.error("Firebase configuration object is missing API key.");
+        const error = new Error("Firebase configuration object is missing API key.");
+        console.error(error.message);
         if (authLoadingScreen) { // Use imported authLoadingScreen
             authLoadingScreen.innerHTML = '<h2>Error de Configuración</h2><p>Falta la configuración de Firebase.</p>';
         }
-        return false; // Indicate failure
+        return { success: false, error: error };
     }
 }
 

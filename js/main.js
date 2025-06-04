@@ -1,4 +1,4 @@
-import { initializeFirebase, firebaseAuth, onAuthStateChanged, signInAnonymously } from './firebase.js';
+import { initializeFirebase } from './firebase.js';
 import { initializeSounds } from './sound.js';
 import { animateRiver } from './graphics.js';
 import {
@@ -23,6 +23,8 @@ import { GameLogComponent } from './components/GameLog.js';
 defineComponent('player-turn-display', PlayerTurnDisplay);
 defineComponent('game-menu', GameMenuComponent);
 defineComponent('game-log', GameLogComponent);
+
+let firebaseInitResult = null; // To store Firebase initialization result
 
 let gameState = {
     board: [], units: {}, riverCanvases: [], riverAnimationTime: 0,
@@ -68,16 +70,19 @@ async function handleFirebaseAuthStateChanged(user) {
     } else {
         console.log("No autenticado, intentando iniciar sesión anónimamente...");
         try {
-            if (firebaseAuth) {
-                await signInAnonymously(firebaseAuth);
+            // Ensure firebaseInitResult and its properties are available
+            if (firebaseInitResult && firebaseInitResult.success && firebaseInitResult.firebaseAuth && firebaseInitResult.signInAnonymously) {
+                console.log("firebaseInitResult.firebaseAuth defined:", !!firebaseInitResult.firebaseAuth);
+                console.log("firebaseInitResult.signInAnonymously defined:", !!firebaseInitResult.signInAnonymously);
+                await firebaseInitResult.signInAnonymously(firebaseInitResult.firebaseAuth);
             } else {
-                console.error("Firebase Auth no está inicializado al intentar signInAnonymously.");
-                if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error de Autenticación</h2><p>Firebase Auth no disponible.</p>';
+                console.error("Firebase Auth or signInAnonymously function is not available from firebaseInitResult.");
+                if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error de Autenticación</h2><p>Funciones de autenticación de Firebase no disponibles.</p>';
             }
         } catch (error) {
-            console.error("Error en inicio de sesión anónimo:", error);
-            if(authLoadingScreen) authLoadingScreen.innerHTML = `<h2>Error de Autenticación</h2><p>Fallo en inicio de sesión: ${error.message}. Recarga.</p>`;
-            showNotification("Error de Autenticación", `Fallo en inicio de sesión: ${error.message}`);
+            console.error("Error en inicio de sesión anónimo:", error.code, error.message);
+            if(authLoadingScreen) authLoadingScreen.innerHTML = `<h2>Error de Autenticación</h2><p>Fallo en inicio de sesión (${error.code || ' desconocido'}): ${error.message}. Recarga.</p>`;
+            showNotification("Error de Autenticación", `Fallo en inicio de sesión (${error.code || 'desconocido'}): ${error.message}`);
         }
     }
 }
@@ -128,16 +133,16 @@ if(joinGameBtn_Lobby) joinGameBtn_Lobby.addEventListener('click', async () => {
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const firebaseReady = await initializeFirebase();
-    if (firebaseReady && firebaseAuth) { // Explicitly check firebaseAuth from import
+    firebaseInitResult = await initializeFirebase(); // Store result globally within the module
+    if (firebaseInitResult.success) {
         initializeSounds();
-        // Pass the imported onAuthStateChanged function from firebase.js
-        // to the firebaseAuth.onAuthStateChanged method.
-        // The first argument to the callback of firebaseAuth.onAuthStateChanged is the user object.
-        firebaseAuth.onAuthStateChanged((user) => handleFirebaseAuthStateChanged(user));
+        // Use onAuthStateChanged and firebaseAuth from the initialization result
+        firebaseInitResult.onAuthStateChanged(firebaseInitResult.firebaseAuth, handleFirebaseAuthStateChanged);
         animateRiver(gameState);
     } else {
-        if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Fatal</h2><p>Firebase no pudo inicializarse correctamente o firebaseAuth no está disponible. El juego no puede continuar.</p>';
-        console.error("Firebase not ready or firebaseAuth is not available after initialization.");
+        console.error("Firebase initialization failed:", firebaseInitResult.error);
+        if(authLoadingScreen) {
+            authLoadingScreen.innerHTML = `<h2>Error Fatal</h2><p>Firebase no pudo inicializarse: ${firebaseInitResult.error.message || firebaseInitResult.error}. El juego no puede continuar.</p>`;
+        }
     }
 });
