@@ -11,7 +11,6 @@ async function initializeFirebase() {
         try {
             const fb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
             const authFb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-            authFb.setLogLevel('debug'); // Enable Auth debug logging
             const firestoreFb = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
             firebaseApp = fb.initializeApp(firebaseConfig);
