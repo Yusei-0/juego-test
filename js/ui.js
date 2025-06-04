@@ -27,8 +27,8 @@ export const playerListDiv = document.getElementById('playerList');
 export const leaveWaitingRoomBtn = document.getElementById('leaveWaitingRoomBtn');
 export const gameBoardElement = document.getElementById('gameBoard');
 export const unitLayerElement = document.getElementById('unitLayer');
-export const currentPlayerText = document.getElementById('currentPlayerText');
-export const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+// export const currentPlayerText = document.getElementById('currentPlayerText'); // Removed
+// export const playerRoleDisplay = document.getElementById('playerRoleDisplay'); // Removed
 export const gameModeInfoDisplay = document.getElementById('gameModeInfoDisplay');
 export const gameIdInfoDisplay = document.getElementById('gameIdInfoDisplay');
 export const aiTurnIndicator = document.getElementById('aiTurnIndicator');
@@ -97,21 +97,46 @@ export function showScreen(screenId) {
 }
 
 export function updateInfoDisplay(gameState) {
-    let currentPlayerNumberDisplay;
+    const playerTurnDisplayElement = document.querySelector('player-turn-display');
+    if (!playerTurnDisplayElement) {
+        console.error('PlayerTurnDisplay component not found in the DOM');
+        // Attempt to update other elements even if player-turn-display is missing
+    }
+
+    let currentPlayerName = 'Jugador X'; // Default
+    let playerRoleText = 'Rol: ---';    // Default
+    let currentPlayerNumberString = '1'; // Default
+
     if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
         const gd = gameState.currentFirebaseGameData;
-        currentPlayerNumberDisplay = gd.currentPlayerId === gd.player1Id ? 1 : (gd.currentPlayerId === gd.player2Id ? 2 : 'N/A');
-        if(playerRoleDisplay) playerRoleDisplay.textContent = `Eres: ${gameState.localPlayerRole || 'Espectador'} (Jugador ${gameState.localPlayerNumber})`;
-        if(gameIdInfoDisplay) gameIdInfoDisplay.textContent = gameState.currentGameId || "---";
-        if(gameIdInfoDisplay) gameIdInfoDisplay.style.display = gameState.currentGameId ? 'block' : 'none';
-    } else {
-        currentPlayerNumberDisplay = gameState.currentPlayer;
-        if(playerRoleDisplay) playerRoleDisplay.textContent = gameState.gameMode === 'vsAI' ? `Eres: Jugador 1` : `Modo Local`;
-        if(gameIdInfoDisplay) gameIdInfoDisplay.style.display = 'none';
+        const currentTurnPlayerNumber = gd.currentPlayerId === gd.player1Id ? 1 : (gd.currentPlayerId === gd.player2Id ? 2 : 0);
+        currentPlayerName = `Jugador ${currentTurnPlayerNumber}`;
+        currentPlayerNumberString = currentTurnPlayerNumber.toString();
+        if (gameState.localPlayerRole) {
+            playerRoleText = `Eres: ${gameState.localPlayerRole} (Jugador ${gameState.localPlayerNumber})`;
+        } else {
+            playerRoleText = 'Espectador';
+        }
+    } else if (gameState.gameMode === 'local' || gameState.gameMode === 'vsAI') {
+        currentPlayerName = `Jugador ${gameState.currentPlayer}`;
+        currentPlayerNumberString = gameState.currentPlayer.toString();
+        if (gameState.gameMode === 'vsAI') {
+            playerRoleText = `Eres: Jugador 1`;
+        } else { // Local multiplayer
+            playerRoleText = `Turno Jugador ${gameState.currentPlayer}`;
+        }
     }
-    if(currentPlayerText) currentPlayerText.textContent = `Jugador ${currentPlayerNumberDisplay}`;
-    if(currentPlayerText) currentPlayerText.className = currentPlayerNumberDisplay === 1 ? 'player1' : 'player2';
+
+    if (playerTurnDisplayElement) {
+        playerTurnDisplayElement.setAttribute('player-name', currentPlayerName);
+        playerTurnDisplayElement.setAttribute('player-role', playerRoleText);
+        playerTurnDisplayElement.setAttribute('player-number', currentPlayerNumberString);
+    }
+
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${gameState.gameMode === 'vsAI' ? `VS IA (${gameState.aiDifficulty})` : (gameState.gameMode === 'online' ? 'Online' : 'Local')}`;
+    if(gameIdInfoDisplay) gameIdInfoDisplay.textContent = gameState.currentGameId || "---";
+    if(gameIdInfoDisplay) gameIdInfoDisplay.style.display = (gameState.gameMode === 'online' && gameState.currentGameId) ? 'block' : 'none';
+
 
     if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber && gameState.gameActive) {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'block';

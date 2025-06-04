@@ -1,4 +1,5 @@
 import { firebaseConfig } from './config.js';
+import { authLoadingScreen } from './ui.js'; // Added import
 
 // Firebase SDK imports
 let firebaseApp, firebaseAuth, firestoreDB;
@@ -34,17 +35,14 @@ async function initializeFirebase() {
             return true; // Indicate success
         } catch (error) {
             console.error("Error initializing Firebase for deployment:", error);
-            // Ensure authLoadingScreen is defined or handle this error differently
-            const authLoadingScreen = document.getElementById('authLoadingScreen');
-            if (authLoadingScreen) {
+            if (authLoadingScreen) { // Use imported authLoadingScreen
                 authLoadingScreen.innerHTML = '<h2>Error Crítico</h2><p>No se pudo inicializar Firebase. Revisa la consola.</p>';
             }
             return false; // Indicate failure
         }
     } else {
         console.error("Firebase configuration object is missing API key.");
-        const authLoadingScreen = document.getElementById('authLoadingScreen');
-        if (authLoadingScreen) {
+        if (authLoadingScreen) { // Use imported authLoadingScreen
             authLoadingScreen.innerHTML = '<h2>Error de Configuración</h2><p>Falta la configuración de Firebase.</p>';
         }
         return false; // Indicate failure

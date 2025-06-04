@@ -14,7 +14,11 @@ import {
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
 import { onTileClick } from './gameActions.js';
+import { defineComponent } from './elemental.js';
+import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
 
+// Define custom components
+defineComponent('player-turn-display', PlayerTurnDisplay);
 
 let gameState = {
     board: [], units: {}, riverCanvases: [], riverAnimationTime: 0,
@@ -102,11 +106,15 @@ if(joinGameBtn_Lobby) joinGameBtn_Lobby.addEventListener('click', async () => {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const firebaseReady = await initializeFirebase();
-    if (firebaseReady && firebaseAuth) { // Ensure firebaseAuth is also checked
+    if (firebaseReady && firebaseAuth) { // Explicitly check firebaseAuth from import
         initializeSounds();
-        onAuthStateChanged(firebaseAuth, (user) => handleFirebaseAuthStateChanged(user));
-        animateRiver(gameState); // Pass gameState
+        // Pass the imported onAuthStateChanged function from firebase.js
+        // to the firebaseAuth.onAuthStateChanged method.
+        // The first argument to the callback of firebaseAuth.onAuthStateChanged is the user object.
+        firebaseAuth.onAuthStateChanged((user) => handleFirebaseAuthStateChanged(user));
+        animateRiver(gameState);
     } else {
-        if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Fatal</h2><p>Firebase no pudo inicializarse. El juego no puede continuar.</p>';
+        if(authLoadingScreen) authLoadingScreen.innerHTML = '<h2>Error Fatal</h2><p>Firebase no pudo inicializarse correctamente o firebaseAuth no está disponible. El juego no puede continuar.</p>';
+        console.error("Firebase not ready or firebaseAuth is not available after initialization.");
     }
 });
