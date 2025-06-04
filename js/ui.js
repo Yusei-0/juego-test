@@ -269,6 +269,18 @@ export function showEndGameModal(gameState, winner, reason) { // Added gameState
     playSound('death','C4');
 }
 
+export function clearHighlightsAndSelection(gameState) {
+    if (gameState) {
+        gameState.selectedUnit = null;
+        gameState.highlightedMoves = [];
+        // The calling context (e.g., in onlineGame.js)
+        // is responsible for calling renderHighlightsAndInfo if needed
+        // after clearing these values.
+    } else {
+        console.warn('clearHighlightsAndSelection called without gameState');
+    }
+}
+
 export function renderHighlightsAndInfo(gameState) {
     document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack')
         .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack'));
