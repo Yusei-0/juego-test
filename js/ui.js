@@ -407,15 +407,18 @@ export function updateSelectedUnitInfoPanel(gameState) {
     }
 }
 
-export function showEndGameModal(gameState, winner, reason) { // Added gameState for consistency, though not used directly
+export function showEndGameModal(gameState, winner, reason) {
     if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
-    if (winner) {
+    if (winner === 1 || winner === 2) { // Explicitly check for player 1 or 2
         if(gameOverMessage) gameOverMessage.innerHTML = `¡Jugador ${winner} Gana!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
         if(gameOverMessage) gameOverMessage.className='';
         if(gameOverMessage) gameOverMessage.classList.add(winner===1?'winner-player1':'winner-player2');
-    } else {
+    } else if (winner === null) { // Handles draw
         if(gameOverMessage) gameOverMessage.innerHTML = `¡Empate!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
         if(gameOverMessage) gameOverMessage.className='';
+    } else { // Handles undefined or any other unexpected value for winner
+        if(gameOverMessage) gameOverMessage.innerHTML = `Partida Terminada<br><span style="font-size:0.8em;color:#a0aec0;">(${reason || 'Resultado desconocido'})</span>`;
+        if(gameOverMessage) gameOverMessage.className=''; // Clear any winner-specific class
     }
     if(gameOverModal) gameOverModal.style.display='flex';
     playSound('death','C4');
