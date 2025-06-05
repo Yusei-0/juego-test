@@ -12,7 +12,9 @@ import {
     showScreen, addLogEntry, gameModeInfoDisplay, showNotification,
     renderHighlightsAndInfo, renderUnitRosterLocal,
     displayTutorial, // New
-    backToMainMenuBtn_Tutorial // New
+    backToMainMenuBtn_Tutorial, // New
+    displayPatchNotes, // Added for patch notes
+    backToMainMenuBtn_PatchNotes // Added for patch notes back button
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
@@ -59,7 +61,8 @@ async function handleFirebaseAuthStateChanged(user) {
                 { id: 'localMultiplayerBtn', text: 'Multijugador Local', class: 'action-button' },
                 { id: 'vsAIBtn', text: 'VS IA', class: 'action-button' },
                 { id: 'onlineMultiplayerBtn', text: 'Multijugador Online', class: 'action-button' },
-                { id: 'tutorialBtn', text: 'Cómo Jugar (Tutorial)', class: 'secondary-button' } // New button
+                { id: 'tutorialBtn', text: 'Cómo Jugar (Tutorial)', class: 'secondary-button' },
+                { id: 'patchNotesBtn', text: 'Notas del Parche', class: 'secondary-button' } // New Patch Notes button
             ];
             mainMenuComponent.setAttribute('buttons', JSON.stringify(mainMenuButtons));
 
@@ -74,8 +77,10 @@ async function handleFirebaseAuthStateChanged(user) {
                         playerUserIdDisplay_Lobby.textContent = gameState.localPlayerId.substring(0,12) + "...";
                     }
                     showScreen(onlineLobbyScreen.id);
-                } else if (buttonId === 'tutorialBtn') { // New condition
+                } else if (buttonId === 'tutorialBtn') {
                     displayTutorial();
+                } else if (buttonId === 'patchNotesBtn') { // New condition for Patch Notes
+                    displayPatchNotes();
                 }
             });
         }
@@ -155,6 +160,11 @@ if(aiHardBtn) aiHardBtn.addEventListener('click', (e) => startGame('vsAI', e.tar
 if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => showScreen(mainMenuScreen.id));
+if(backToMainMenuBtn_PatchNotes && mainMenuScreen) { // Added event listener for patch notes back button
+    backToMainMenuBtn_PatchNotes.addEventListener('click', () => {
+        showScreen(mainMenuScreen.id);
+    });
+}
 
 if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
 if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));

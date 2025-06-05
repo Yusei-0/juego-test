@@ -406,3 +406,101 @@ body {
      color: white;
      margin-top: 1rem; /* Add some space above the button */
 }
+
+/* Patch Notes Screen Styles */
+#patchNotesScreen .patch-notes-container {
+    width: 90%;
+    max-width: 800px;
+    background-color: #2d3748; /* gray-800 or similar */
+    padding: 25px;
+    border-radius: 0.75rem; /* Consistent with menu-screen */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6); /* Consistent with menu-screen */
+    color: #e2e8f0; /* light gray text */
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Ensure it doesn't overflow viewport height */
+}
+
+#patchNotesScreen .patch-notes-title {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.5rem; /* Consistent with other screen titles */
+    color: #90cdf4; /* blue-300 */
+    text-align: center;
+    margin-bottom: 1.5rem; /* Consistent spacing */
+}
+
+#patchNotesScreen .version-selector-area {
+    margin-bottom: 1rem;
+    text-align: center;
+    flex-shrink: 0; /* Prevent shrinking if content is large */
+}
+
+#patchNotesScreen .version-selector-area label {
+    margin-right: 10px;
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 1rem;
+    color: #cbd5e0; /* lighter gray for label */
+}
+
+#patchNotesScreen #patchVersionSelector {
+    padding: 0.6rem 1rem;
+    border-radius: 0.3rem;
+    background-color: #4a5568; /* gray-700 */
+    color: #e2e8f0;
+    border: 1px solid #718096; /* gray-500 */
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 1rem;
+    min-width: 150px;
+}
+
+#patchNotesScreen .patch-notes-content-area {
+    flex-grow: 1; /* Allow content area to take available space */
+    overflow-y: auto;
+    background-color: #1a202c; /* darker background for content */
+    padding: 15px 20px;
+    border-radius: 0.3rem;
+    border: 1px solid #4a5568; /* gray-700 */
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
+    font-family: 'Roboto Condensed', sans-serif;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: #cbd5e0; /* Slightly lighter text for content */
+}
+
+/* Custom scrollbar for patch notes content (optional, WebKit browsers) */
+#patchNotesScreen .patch-notes-content-area::-webkit-scrollbar {
+    width: 10px;
+}
+
+#patchNotesScreen .patch-notes-content-area::-webkit-scrollbar-track {
+    background: #2d3748; /* gray-800 */
+    border-radius: 0.3rem;
+}
+
+#patchNotesScreen .patch-notes-content-area::-webkit-scrollbar-thumb {
+    background: #718096; /* gray-500 */
+    border-radius: 0.3rem;
+}
+
+#patchNotesScreen .patch-notes-content-area::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0; /* gray-400 */
+}
+
+#patchNotesScreen #backToMainMenuBtn_PatchNotes {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9rem;
+    padding: 0.8rem 1.2rem; /* Consistent padding */
+    background-color: #718096; /* gray-500 */
+    color: white;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: block;
+    margin: 1.5rem auto 0 auto; /* Centering and top margin */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+#patchNotesScreen #backToMainMenuBtn_PatchNotes:hover {
+    background-color: #a0aec0; /* gray-400 */
+}

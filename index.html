@@ -53,6 +53,26 @@
         </div>
     </div>
 
+    <div id="patchNotesScreen" class="menu-screen" style="display: none;">
+        <div class="patch-notes-container">
+            <h2 class="patch-notes-title">Notas del Parche</h2>
+
+            <div class="version-selector-area">
+                <label for="patchVersionSelector">Seleccionar Versión:</label>
+                <select id="patchVersionSelector" name="patchVersionSelector">
+                    <!-- Options will be populated by JavaScript -->
+                    <option value="1.0">Versión 1.0</option> <!-- Placeholder, will be dynamic -->
+                </select>
+            </div>
+
+            <div id="patchNotesContent" class="patch-notes-content-area">
+                <!-- Patch notes content will be injected here by JavaScript -->
+                Cargando notas del parche...
+            </div>
+
+            <button id="backToMainMenuBtn_PatchNotes" class="bg-gray-500 hover:bg-gray-600 mt-6">Volver al Menú</button>
+        </div>
+    </div>
 
     <div id="waitingRoomScreen" class="lobby-screen" style="display: none;">
         <h2>Sala de Espera</h2>
