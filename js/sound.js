@@ -3,7 +3,6 @@ let moveSound, attackSound, damageSound, deathSound, turnSound, healSound;
 import { MENU_MUSIC_PATH } from './constants.js';
 
 // Existing sound effect players
-let moveSound, attackSound, damageSound, deathSound, turnSound;
 
 // Music players
 let menuMusicPlayer;
