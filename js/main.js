@@ -1,3 +1,4 @@
+const APP_VERSION = "1.0";
 import { initializeFirebase } from './firebase.js';
 import { initializeSounds } from './sound.js';
 import { animateRiver } from './graphics.js';
@@ -11,7 +12,9 @@ import {
     showScreen, addLogEntry, gameModeInfoDisplay, showNotification,
     renderHighlightsAndInfo, renderUnitRosterLocal,
     displayTutorial, // New
-    backToMainMenuBtn_Tutorial // New
+    backToMainMenuBtn_Tutorial, // New
+    displayPatchNotes, // Added for patch notes
+    backToMainMenuBtn_PatchNotes // Added for patch notes back button
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
@@ -58,7 +61,8 @@ async function handleFirebaseAuthStateChanged(user) {
                 { id: 'localMultiplayerBtn', text: 'Multijugador Local', class: 'action-button' },
                 { id: 'vsAIBtn', text: 'VS IA', class: 'action-button' },
                 { id: 'onlineMultiplayerBtn', text: 'Multijugador Online', class: 'action-button' },
-                { id: 'tutorialBtn', text: 'Cómo Jugar (Tutorial)', class: 'secondary-button' } // New button
+                { id: 'tutorialBtn', text: 'Cómo Jugar (Tutorial)', class: 'secondary-button' },
+                { id: 'patchNotesBtn', text: 'Notas del Parche', class: 'secondary-button' } // New Patch Notes button
             ];
             mainMenuComponent.setAttribute('buttons', JSON.stringify(mainMenuButtons));
 
@@ -73,8 +77,10 @@ async function handleFirebaseAuthStateChanged(user) {
                         playerUserIdDisplay_Lobby.textContent = gameState.localPlayerId.substring(0,12) + "...";
                     }
                     showScreen(onlineLobbyScreen.id);
-                } else if (buttonId === 'tutorialBtn') { // New condition
+                } else if (buttonId === 'tutorialBtn') {
                     displayTutorial();
+                } else if (buttonId === 'patchNotesBtn') { // New condition for Patch Notes
+                    displayPatchNotes();
                 }
             });
         }
@@ -154,6 +160,11 @@ if(aiHardBtn) aiHardBtn.addEventListener('click', (e) => startGame('vsAI', e.tar
 if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => showScreen(mainMenuScreen.id));
+if(backToMainMenuBtn_PatchNotes && mainMenuScreen) { // Added event listener for patch notes back button
+    backToMainMenuBtn_PatchNotes.addEventListener('click', () => {
+        showScreen(mainMenuScreen.id);
+    });
+}
 
 if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
 if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
@@ -180,6 +191,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Use onAuthStateChanged and firebaseAuth from the initialization result
         firebaseInitResult.onAuthStateChanged(firebaseInitResult.firebaseAuth, handleFirebaseAuthStateChanged);
         animateRiver(gameState);
+
+        const versionDisplayElement = document.createElement('p');
+        versionDisplayElement.id = 'appVersionDisplay';
+        versionDisplayElement.textContent = `Versión: ${APP_VERSION}`;
+        versionDisplayElement.style.textAlign = 'center'; // Optional: center align
+        versionDisplayElement.style.color = '#cbd5e0'; // Optional: light gray color
+        versionDisplayElement.style.fontSize = '0.9rem'; // Optional: slightly smaller font
+
+        const gameTitleElement = document.querySelector('h1.game-title');
+        if (gameTitleElement && gameTitleElement.parentNode) {
+            gameTitleElement.parentNode.insertBefore(versionDisplayElement, gameTitleElement.nextSibling);
+        } else {
+            // Fallback if title isn't found, though it should be there
+            document.body.insertBefore(versionDisplayElement, document.body.firstChild);
+        }
     } else {
         console.error("Firebase initialization failed:", firebaseInitResult.error);
         if(authLoadingScreen) {

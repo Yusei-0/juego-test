@@ -11,6 +11,10 @@ export const onlineLobbyScreen = document.getElementById('onlineLobbyScreen');
 export const tutorialScreen = document.getElementById('tutorialScreen'); // New
 export const tutorialContentElement = document.getElementById('tutorialContent'); // New
 export const backToMainMenuBtn_Tutorial = document.getElementById('backToMainMenuBtn_Tutorial'); // New
+export const patchNotesScreen = document.getElementById('patchNotesScreen');
+export const patchVersionSelector = document.getElementById('patchVersionSelector');
+export const patchNotesContent = document.getElementById('patchNotesContent');
+export const backToMainMenuBtn_PatchNotes = document.getElementById('backToMainMenuBtn_PatchNotes');
 export const gameContainer = document.getElementById('gameContainer');
 export const localMultiplayerBtn = document.getElementById('localMultiplayerBtn');
 export const vsAIBtn = document.getElementById('vsAIBtn');
@@ -101,7 +105,8 @@ export function showScreen(screenId) {
         { name: "waitingRoomScreen", el: waitingRoomScreen },
         { name: "gameContainer", el: gameContainer },
         { name: "gameOverModal", el: gameOverModal },
-        { name: "tutorialScreen", el: tutorialScreen }
+        { name: "tutorialScreen", el: tutorialScreen },
+        { name: "patchNotesScreen", el: patchNotesScreen }
     ];
 
     screensToManage.forEach(screen => {
@@ -365,4 +370,157 @@ export function renderHighlightsAndInfo(gameState) {
     }
     updateInfoDisplay(gameState);
     updateSelectedUnitInfoPanel(gameState);
+}
+
+let allPatchNotes = {}; // Cache for parsed patch notes
+
+async function fetchAndParsePatchNotes() {
+    if (Object.keys(allPatchNotes).length > 0 && !allPatchNotes["Error"]) { // Check for error to allow re-fetch
+        return allPatchNotes; // Return cached if already fetched and no error
+    }
+    try {
+        const response = await fetch('PATCH_NOTES.md');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const markdownText = await response.text();
+
+        allPatchNotes = {}; // Clear before repopulating
+
+        // Regex to find versions like "## Versión X.Y.Z" or "## Versión X.Y"
+        // It captures the version number and the content until the next version or EOF
+        const versionRegex = /^## Versión\s+([^\n]+)\n([\s\S]*?)(?=\n## Versión|\Z)/gm;
+        let match;
+        while ((match = versionRegex.exec(markdownText)) !== null) {
+            const versionNumber = match[1].trim();
+            const content = match[2].trim();
+            if (versionNumber) {
+                allPatchNotes[versionNumber] = content;
+            }
+        }
+
+        // Fallback if the above regex yields no versions, but the file has content
+        // This might happen if the main title "# Notas del Parche" is the only H1/H2 level heading
+        // or if versions are formatted differently, e.g., "## 1.0" instead of "## Versión 1.0"
+        if (Object.keys(allPatchNotes).length === 0 && markdownText.trim() !== "") {
+            console.warn("Primary patch notes parsing found no versions. Attempting fallback.");
+            // Attempt to split by "## " which might be generic titles or versions
+            const sections = markdownText.split(/\n## /);
+            let potentialContent = "";
+            if (sections.length > 0) {
+                // Check if the first section (before any "## ") contains meaningful content
+                // This could be the case if the file doesn't start with "## Versión" but has a preamble
+                const preamble = sections[0].trim();
+                if (!preamble.startsWith("# Notas del Parche") && preamble.length > 50) { // Heuristic: preamble is content
+                    potentialContent += preamble + "\n\n";
+                } else if (preamble.startsWith("# Notas del Parche") && sections.length === 1) {
+                    // Only title and no "##" sections, use the whole text for a default version
+                    potentialContent = markdownText.replace("# Notas del Parche", "").trim();
+                }
+            }
+
+            for (let i = 1; i < sections.length; i++) { // Start from 1 because split includes content before first "## "
+                const sectionBlock = sections[i];
+                const firstNewline = sectionBlock.indexOf('\n');
+                const title = sectionBlock.substring(0, firstNewline).trim();
+                // Try to extract version from title, e.g., "Versión 1.0", "1.0", "Release 1"
+                let versionKey = title.replace(/^Versión\s+/i, "").trim(); // Remove "Versión " prefix
+
+                const content = sectionBlock.substring(firstNewline + 1).trim();
+
+                if (title && content) {
+                     // If we already have this content under a more specific version, skip
+                    if (Object.values(allPatchNotes).includes(content)) continue;
+
+                    // If we couldn't parse specific versions earlier, this becomes the content
+                    if (Object.keys(allPatchNotes).length === 0) {
+                        allPatchNotes[versionKey || "General"] = (potentialContent + content).trim();
+                        potentialContent = ""; // Reset potential content after using it
+                    } else if (!allPatchNotes[versionKey]) { // Add if versionKey is new
+                        allPatchNotes[versionKey] = content;
+                    } else { // Append to existing if title was not unique enough for a version key
+                        allPatchNotes[versionKey] += "\n\n---\n\n" + content;
+                    }
+                }
+            }
+             // If still no versions, and potentialContent has something (e.g. from preamble)
+            if (Object.keys(allPatchNotes).length === 0 && potentialContent.trim()) {
+                allPatchNotes["General"] = potentialContent.trim();
+            }
+        }
+
+
+        if (Object.keys(allPatchNotes).length === 0) { // If still no versions after all attempts
+             console.warn("No versions found after all parsing attempts. Treating entire file as 'General' notes.");
+             allPatchNotes["General"] = markdownText.replace("# Notas del Parche", "").trim(); // Use whole content, remove main title
+        }
+
+        return allPatchNotes;
+    } catch (error) {
+        console.error("Error fetching or parsing patch notes:", error);
+        allPatchNotes = { "Error": "No se pudieron cargar las notas del parche. Intenta de nuevo más tarde." };
+        return allPatchNotes;
+    }
+}
+
+function updatePatchNotesContent(version) {
+    if (patchNotesContent && allPatchNotes[version]) {
+        patchNotesContent.textContent = allPatchNotes[version];
+    } else if (patchNotesContent) {
+        patchNotesContent.textContent = "Notas no encontradas para esta versión.";
+    }
+}
+
+export async function displayPatchNotes() {
+    await fetchAndParsePatchNotes();
+
+    if (patchVersionSelector) {
+        patchVersionSelector.innerHTML = ''; // Clear existing options
+        const sortedVersions = Object.keys(allPatchNotes).sort((a, b) => {
+            if (a === "Error" || b === "Error") return a === "Error" ? 1 : -1; // Push "Error" to the end or handle as needed
+            if (a === "General" || b === "General") return a === "General" ? 1 : -1; // Push "General" to the end
+
+            const partsA = a.split('.').map(v => parseInt(v, 10));
+            const partsB = b.split('.').map(v => parseInt(v, 10));
+
+            for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+                const valA = partsA[i] || 0;
+                const valB = partsB[i] || 0;
+                if (valA !== valB) return valB - valA; // Sort descending (newest first)
+            }
+            return 0;
+        });
+
+        sortedVersions.forEach(version => {
+            if (version === "Error" && Object.keys(allPatchNotes).length > 1) return; // Skip "Error" if other versions exist
+
+            const option = document.createElement('option');
+            option.value = version;
+            option.textContent = version === "Error" ? "Error al Cargar" : (version === "General" ? "General" : `Versión ${version}`);
+            patchVersionSelector.appendChild(option);
+        });
+
+        if (sortedVersions.length > 0) {
+            const defaultVersion = sortedVersions[0]; // Select the newest/first version by default
+            patchVersionSelector.value = defaultVersion;
+            updatePatchNotesContent(defaultVersion);
+        } else if (allPatchNotes["Error"]) { // Should be caught by sortedVersions[0] if Error is only key
+             updatePatchNotesContent("Error");
+        } else {
+            patchNotesContent.textContent = "No hay notas del parche disponibles.";
+        }
+    }
+
+    if (patchVersionSelector) {
+        patchVersionSelector.removeEventListener('change', handleVersionChange);
+        patchVersionSelector.addEventListener('change', handleVersionChange);
+    }
+
+    // Ensure the screen to show is correct
+    const screenToShow = patchNotesScreen ? patchNotesScreen.id : 'patchNotesScreen';
+    showScreen(screenToShow);
+}
+
+function handleVersionChange(event) {
+    updatePatchNotesContent(event.target.value);
 }
