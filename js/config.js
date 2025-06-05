@@ -7,3 +7,5 @@ export const firebaseConfig = {
   appId: "1:772409857798:web:f3c8618b7b9ad98d9fb087",
   measurementId: "G-BGMXVE91TJ"
 };
+
+export const INITIAL_MAGIC_POINTS = 50;

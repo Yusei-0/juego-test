@@ -1,5 +1,5 @@
 // gameState will be passed as an argument to functions needing it from main.js
-import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
+import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE, POINTS_PER_KILL } from './constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
 import { playSound } from './sound.js';
 import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
@@ -45,14 +45,14 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     };
 
     placeUnit(createUnitData('BASE', 1, 0), BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2)); // From boardUtils.js
-    placeUnit(createUnitData('GUERRERO', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
-    placeUnit(createUnitData('GIGANTE', 1, 3), BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2));
+    // placeUnit(createUnitData('GUERRERO', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
+    // placeUnit(createUnitData('ARQUERO', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
+    // placeUnit(createUnitData('GIGANTE', 1, 3), BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2));
 
     placeUnit(createUnitData('BASE', 2, 0), 0, Math.floor(BOARD_COLS / 2));
-    placeUnit(createUnitData('GUERRERO', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
-    placeUnit(createUnitData('GIGANTE', 2, 3), 2, Math.floor(BOARD_COLS / 2));
+    // placeUnit(createUnitData('GUERRERO', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
+    // placeUnit(createUnitData('ARQUERO', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
+    // placeUnit(createUnitData('GIGANTE', 2, 3), 2, Math.floor(BOARD_COLS / 2));
 
     gameState.currentPlayer = 1;
     gameState.localPlayerNumber = 1;
@@ -139,7 +139,18 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
         }
         gameState.board[targetData.row][targetData.col]=null;
         delete gameState.units[targetData.id];
-        renderUnitRosterLocal(gameState);
+
+        // Award points for kill
+        if (attackerData.player === 1) {
+            gameState.player1MagicPoints += POINTS_PER_KILL;
+            addLogEntry(gameState, `Jugador 1 ganó ${POINTS_PER_KILL} puntos por destruir una unidad.`, 'points');
+        } else if (attackerData.player === 2) {
+            gameState.player2MagicPoints += POINTS_PER_KILL;
+            addLogEntry(gameState, `Jugador 2 ganó ${POINTS_PER_KILL} puntos por destruir una unidad.`, 'points');
+        }
+
+        renderUnitRosterLocal(gameState); // Update roster (and potentially magic points if displayed there)
+
         if(targetData.type==='BASE'){
             endGameLocal(gameState, attackerData.player,"Base Destruida");
             gameState.isAnimating=false; return;

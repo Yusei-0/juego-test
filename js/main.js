@@ -1,6 +1,7 @@
 import { initializeFirebase } from './firebase.js';
 import { initializeSounds } from './sound.js';
 import { animateRiver } from './graphics.js';
+import { INITIAL_MAGIC_POINTS } from './config.js';
 import {
     authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen,
     gameContainer, gameOverModal, /*localMultiplayerBtn, vsAIBtn, onlineMultiplayerBtn,*/ // Removed old button imports
@@ -20,11 +21,13 @@ import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
 import { GameMenuComponent } from './components/GameMenu.js';
 import { GameLogComponent } from './components/GameLog.js';
+import { InvocationMenu } from './components/InvocationMenu.js';
 
 // Define custom components
 defineComponent('player-turn-display', PlayerTurnDisplay);
 defineComponent('game-menu', GameMenuComponent);
 defineComponent('game-log', GameLogComponent);
+defineComponent('invocation-menu', InvocationMenu);
 
 let firebaseInitResult = null; // To store Firebase initialization result
 
@@ -34,6 +37,7 @@ let gameState = {
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
+    player1MagicPoints: 0, player2MagicPoints: 0,
     unsubscribeGameListener: null
 };
 
@@ -134,8 +138,10 @@ function startGame(mode, difficulty = null) {
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${mode === 'vsAI' ? `VS IA (${difficulty})` : (mode === 'online' ? 'Online' : 'Local')}`;
 
     if (mode === 'local' || mode === 'vsAI') {
+        gameState.player1MagicPoints = INITIAL_MAGIC_POINTS;
+        gameState.player2MagicPoints = INITIAL_MAGIC_POINTS;
         // Pass gameState and the onTileClick function (bound with gameState)
-        initializeLocalBoardAndUnits(gameState, (r,c) => onTileClick(gameState, r, c));
+        initializeLocalBoardAndUnits(gameState, (r,c) => onTileClick(gameState, r, c)); // TODO: Review unit initialization
         renderHighlightsAndInfo(gameState);
         renderUnitRosterLocal(gameState);
     } else if (mode === 'online') {

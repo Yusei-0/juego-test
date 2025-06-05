@@ -1,9 +1,10 @@
 // gameState will be passed as an argument to functions needing it.
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
-import { getTileType } from './boardUtils.js'; // Updated import
+import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, POINTS_PER_KILL } from './constants.js';
+import { getTileType, createUnitData } from './boardUtils.js'; // Updated import
 import { performMoveOnline, performAttackOnline } from './onlineGame.js';
-import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal } from './localGame.js';
-import { renderHighlightsAndInfo } from './ui.js';
+import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, switchTurnLocal } from './localGame.js';
+import { renderHighlightsAndInfo, createUnitElement, addLogEntry, renderUnitRosterLocal, showNotification } from './ui.js';
+import { playSound } from './sound.js'; // Added for invocation sound
 
 export function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
@@ -114,4 +115,58 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
         }
     }
     return possibleActions;
+}
+
+export function invokeUnit(gameState, unitTypeKey, row, col) {
+    // Determine playerId (assuming local game for now, where currentPlayer is the one acting)
+    const playerId = gameState.currentPlayer;
+    const unitToInvokeData = UNIT_TYPES[unitTypeKey];
+
+    if (!unitToInvokeData) {
+        console.error(`Invalid unitTypeKey: ${unitTypeKey}`);
+        showNotification("Error de Invocación", `Tipo de unidad inválido: ${unitTypeKey}`);
+        return;
+    }
+
+    // Check if tile is occupied
+    if (gameState.board[row][col]) {
+        showNotification("Error de Invocación", `La casilla (${row},${col}) ya está ocupada.`);
+        return;
+    }
+
+    // TODO: Add checks for valid invocation zones if necessary
+
+    const currentMagicPoints = playerId === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints;
+
+    if (currentMagicPoints < unitToInvokeData.magicCost) {
+        showNotification("Puntos Insuficientes", `No tienes suficientes puntos mágicos para invocar a ${unitToInvokeData.name}.`);
+        return;
+    }
+
+    // Deduct points
+    if (playerId === 1) {
+        gameState.player1MagicPoints -= unitToInvokeData.magicCost;
+    } else {
+        gameState.player2MagicPoints -= unitToInvokeData.magicCost;
+    }
+
+    // Create the unit
+    const generatedId = unitTypeKey.toLowerCase() + Date.now(); // Simple unique ID
+    const unitData = createUnitData(unitTypeKey, playerId, generatedId);
+    unitData.row = row;
+    unitData.col = col;
+
+    // Add to board and units list
+    gameState.board[row][col] = unitData;
+    createUnitElement(gameState, unitData); // This also adds to gameState.units
+
+    addLogEntry(gameState, `Jugador ${playerId} invocó a ${unitToInvokeData.name} en (${row},${col}) por ${unitToInvokeData.magicCost} puntos.`, 'invoke');
+    playSound('invoke', 'C5'); // Example sound for invocation
+
+    // Update UI
+    renderUnitRosterLocal(gameState); // To update magic points display and unit roster
+    renderHighlightsAndInfo(gameState); // To clear any selections and update general info
+
+    // Switch turns (assuming local game context)
+    switchTurnLocal(gameState);
 }

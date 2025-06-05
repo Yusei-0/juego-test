@@ -50,6 +50,8 @@ export const notificationModal = document.getElementById('notificationModal');
 export const notificationTitle = document.getElementById('notificationTitle');
 export const notificationMessageText = document.getElementById('notificationMessageText');
 export const notificationOkBtn = document.getElementById('notificationOkBtn');
+export const player1MagicPointsDisplay = document.getElementById('player1MagicPointsDisplay'); // New
+export const player2MagicPointsDisplay = document.getElementById('player2MagicPointsDisplay'); // New
 
 // Moved from localGame.js
 export function createUnitElement(gameState, unitData) {
@@ -171,6 +173,14 @@ export function updateInfoDisplay(gameState) {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'block';
     } else {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
+    }
+
+    // Update magic points display
+    if(player1MagicPointsDisplay && gameState.hasOwnProperty('player1MagicPoints')) {
+        player1MagicPointsDisplay.textContent = gameState.player1MagicPoints;
+    }
+    if(player2MagicPointsDisplay && gameState.hasOwnProperty('player2MagicPoints')) {
+        player2MagicPointsDisplay.textContent = gameState.player2MagicPoints;
     }
 }
 
