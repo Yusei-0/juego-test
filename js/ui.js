@@ -54,6 +54,7 @@ export const notificationModal = document.getElementById('notificationModal');
 export const notificationTitle = document.getElementById('notificationTitle');
 export const notificationMessageText = document.getElementById('notificationMessageText');
 export const notificationOkBtn = document.getElementById('notificationOkBtn');
+export const surrenderBtn = document.getElementById('surrenderBtn');
 
 // Moved from localGame.js
 export function createUnitElement(gameState, unitData) {
@@ -128,6 +129,14 @@ export function showScreen(screenId) {
     // This might be redundant if gameContainer is handled correctly above.
     // For now, the loop above should handle it if screenId matches gameContainer.id.
     // Example: if (screenId === 'gameContainer' && gameContainer) gameContainer.style.display = 'flex';
+
+    if (surrenderBtn) {
+        if (screenId === 'gameContainer') {
+            surrenderBtn.style.display = 'block';
+        } else {
+            surrenderBtn.style.display = 'none';
+        }
+    }
 }
 
 export function updateInfoDisplay(gameState) {

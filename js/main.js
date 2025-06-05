@@ -17,7 +17,7 @@ import {
     backToMainMenuBtn_PatchNotes // Added for patch notes back button
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
-import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
+import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame, handleSurrenderOnline } from './onlineGame.js';
 import { onTileClick } from './gameActions.js';
 import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
@@ -169,7 +169,28 @@ if(backToMainMenuBtn_PatchNotes && mainMenuScreen) { // Added event listener for
 }
 
 if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
-if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
+
+if(generalLeaveGameBtn) {
+    generalLeaveGameBtn.addEventListener('click', async () => {
+        if (gameState.gameMode === 'online' &&
+            gameState.gameActive &&
+            gameState.currentFirebaseGameData &&
+            gameState.currentFirebaseGameData.status === 'active') {
+
+            // For online active games, attempt to surrender first
+            await handleSurrenderOnline(gameState);
+            // leaveGameCleanup will be called by the Firestore listener eventually,
+            // or if surrender fails and user wants to leave anyway, that's fine too.
+            // However, to ensure cleanup happens even if the listener is slow or fails,
+            // and to provide immediate feedback/navigation:
+            leaveGameCleanup(gameState);
+        } else {
+            // For local games, or non-active online games, just cleanup
+            leaveGameCleanup(gameState);
+        }
+    });
+}
+
 if(modalLeaveGameBtn) modalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
 
 if(notificationOkBtn) notificationOkBtn.addEventListener('click', () => {

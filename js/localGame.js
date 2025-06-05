@@ -2,7 +2,7 @@
 import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
 import { playSound } from './sound.js';
-import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
+import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement, surrenderBtn } from './ui.js';
 import { aiTakeTurn } from './ai.js';
 import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
 import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
@@ -89,6 +89,17 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     gameState.gameActive = true;
     gameState.isAnimating = false;
     gameState.gameLog = [];
+
+    if (surrenderBtn) {
+        // If a bound handler for this gameState already exists, remove it first
+        if (gameState.boundHandleSurrenderLocal) {
+            surrenderBtn.removeEventListener('click', gameState.boundHandleSurrenderLocal);
+        }
+        // Create a new bound handler function for the current gameState
+        gameState.boundHandleSurrenderLocal = () => handleSurrenderLocal(gameState);
+        surrenderBtn.addEventListener('click', gameState.boundHandleSurrenderLocal);
+    }
+
     addLogEntry(gameState, "Nueva partida " + (gameState.gameMode || 'Local') + " iniciada.", "system");
     renderUnitRosterLocal(gameState);
      if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber) {
@@ -245,6 +256,15 @@ export async function performHealLocal(gameState, healerData, targetData, healAm
 
     gameState.isAnimating = false;
     if (gameState.gameActive) switchTurnLocal(gameState);
+}
+
+function handleSurrenderLocal(gameState) {
+    if (!gameState || !gameState.gameActive) return;
+
+    const surrenderingPlayer = gameState.currentPlayer;
+    const winningPlayer = surrenderingPlayer === 1 ? 2 : 1;
+    addLogEntry(gameState, `Jugador ${surrenderingPlayer} se ha rendido.`, 'system');
+    endGameLocal(gameState, winningPlayer, "Rendición");
 }
 
 export function updateUnitHPDisplay(gameState, unitData) {
