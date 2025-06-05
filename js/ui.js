@@ -1,12 +1,16 @@
 import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
 import { playSound } from './sound.js';
 import { unitDrawFunctions } from './graphics.js';
+import { tutorialHTMLContent } from './tutorial_content.js'; // New
 
 // DOM Element References
 export const authLoadingScreen = document.getElementById('authLoadingScreen');
 export const mainMenuScreen = document.getElementById('mainMenuScreen');
 export const difficultyScreen = document.getElementById('difficultyScreen');
 export const onlineLobbyScreen = document.getElementById('onlineLobbyScreen');
+export const tutorialScreen = document.getElementById('tutorialScreen'); // New
+export const tutorialContentElement = document.getElementById('tutorialContent'); // New
+export const backToMainMenuBtn_Tutorial = document.getElementById('backToMainMenuBtn_Tutorial'); // New
 export const gameContainer = document.getElementById('gameContainer');
 export const localMultiplayerBtn = document.getElementById('localMultiplayerBtn');
 export const vsAIBtn = document.getElementById('vsAIBtn');
@@ -88,7 +92,7 @@ export function showNotification(title, message) {
 }
 
 export function showScreen(screenId) {
-    [authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen, waitingRoomScreen, gameContainer, gameOverModal].forEach(el => {
+    [authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen, tutorialScreen, waitingRoomScreen, gameContainer, gameOverModal].forEach(el => { // Added tutorialScreen
         if(el) el.style.display = 'none';
     });
     const screenToShow = document.getElementById(screenId); // screenId is expected to be the actual ID string
@@ -278,6 +282,16 @@ export function clearHighlightsAndSelection(gameState) {
         // after clearing these values.
     } else {
         console.warn('clearHighlightsAndSelection called without gameState');
+    }
+}
+
+export function displayTutorial() {
+    if (tutorialContentElement && tutorialScreen) {
+        tutorialContentElement.innerHTML = tutorialHTMLContent;
+        showScreen('tutorialScreen');
+    } else {
+        console.error("Tutorial screen or content element not found.");
+        showNotification("Error", "No se pudo cargar el tutorial. Faltan elementos de la interfaz.");
     }
 }
 

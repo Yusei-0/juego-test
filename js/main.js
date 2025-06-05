@@ -9,7 +9,9 @@ import {
     joinGameBtn_Lobby, backToMainMenuBtn_Lobby, leaveWaitingRoomBtn,
     generalLeaveGameBtn, modalLeaveGameBtn, notificationModal, notificationOkBtn,
     showScreen, addLogEntry, gameModeInfoDisplay, showNotification,
-    renderHighlightsAndInfo, renderUnitRosterLocal
+    renderHighlightsAndInfo, renderUnitRosterLocal,
+    displayTutorial, // New
+    backToMainMenuBtn_Tutorial // New
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
@@ -55,7 +57,8 @@ async function handleFirebaseAuthStateChanged(user) {
             const mainMenuButtons = [
                 { id: 'localMultiplayerBtn', text: 'Multijugador Local', class: 'action-button' },
                 { id: 'vsAIBtn', text: 'VS IA', class: 'action-button' },
-                { id: 'onlineMultiplayerBtn', text: 'Multijugador Online', class: 'action-button' }
+                { id: 'onlineMultiplayerBtn', text: 'Multijugador Online', class: 'action-button' },
+                { id: 'tutorialBtn', text: 'Cómo Jugar (Tutorial)', class: 'secondary-button' } // New button
             ];
             mainMenuComponent.setAttribute('buttons', JSON.stringify(mainMenuButtons));
 
@@ -70,6 +73,8 @@ async function handleFirebaseAuthStateChanged(user) {
                         playerUserIdDisplay_Lobby.textContent = gameState.localPlayerId.substring(0,12) + "...";
                     }
                     showScreen(onlineLobbyScreen.id);
+                } else if (buttonId === 'tutorialBtn') { // New condition
+                    displayTutorial();
                 }
             });
         }
@@ -148,6 +153,7 @@ if(aiHardBtn) aiHardBtn.addEventListener('click', (e) => startGame('vsAI', e.tar
 
 if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
+if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => showScreen(mainMenuScreen.id));
 
 if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
 if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
