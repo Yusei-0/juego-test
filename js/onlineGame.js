@@ -285,37 +285,43 @@ export function initializeBoardAndUnitsFirebase(gameState, onTileClickCallback) 
             canvas.height = TILE_SIZE;
             const tileCtx = canvas.getContext('2d');
 
-            switch (tileType) {
-                case 'river':
-                    drawRiverTile(tileCtx, TILE_SIZE, TILE_SIZE, gameState.riverAnimationTime || 0);
-                    canvas.classList.add('river-canvas');
-                    gameState.riverCanvases.push(tileCtx);
-                    break;
-                case TILE_TYPE_MOUNTAIN:
-                    drawMountainTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
-                case TILE_TYPE_FOREST:
-                    drawForestTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
-                case TILE_TYPE_SWAMP:
-                    drawSwampTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
-                case TILE_TYPE_PRAIRIE:
-                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
-                case 'bridge':
-                    tileCtx.fillStyle = '#D2B48C'; tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-                    tileCtx.strokeStyle = '#8B4513'; tileCtx.lineWidth = 2;
-                    for (let i = 0; i < TILE_SIZE; i += 10) { tileCtx.moveTo(i, 0); tileCtx.lineTo(i, TILE_SIZE); tileCtx.moveTo(0, i); tileCtx.lineTo(TILE_SIZE, i); }
-                    tileCtx.stroke();
-                    break;
-                case 'player1-spawn':
-                case 'player2-spawn':
-                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
-                default:
-                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
-                    break;
+            if (tileType === 'player1-spawn') {
+                tileCtx.fillStyle = '#ADD8E6'; // Light Blue
+                tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            } else if (tileType === 'player2-spawn') {
+                tileCtx.fillStyle = '#F08080'; // Light Red
+                tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            } else {
+                // Only use the switch for non-spawn area terrain types
+                switch (tileType) {
+                    case 'river':
+                        drawRiverTile(tileCtx, TILE_SIZE, TILE_SIZE, gameState.riverAnimationTime || 0);
+                        canvas.classList.add('river-canvas');
+                        gameState.riverCanvases.push(tileCtx);
+                        break;
+                    case TILE_TYPE_MOUNTAIN:
+                        drawMountainTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                        break;
+                    case TILE_TYPE_FOREST:
+                        drawForestTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                        break;
+                    case TILE_TYPE_SWAMP:
+                        drawSwampTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                        break;
+                    case TILE_TYPE_PRAIRIE:
+                        drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                        break;
+                    case 'bridge':
+                        tileCtx.fillStyle = '#D2B48C'; tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                        tileCtx.strokeStyle = '#8B4513'; tileCtx.lineWidth = 2;
+                        for (let i = 0; i < TILE_SIZE; i += 10) { tileCtx.moveTo(i, 0); tileCtx.lineTo(i, TILE_SIZE); tileCtx.moveTo(0, i); tileCtx.lineTo(TILE_SIZE, i); }
+                        tileCtx.stroke();
+                        break;
+                    // player1-spawn and player2-spawn are handled above
+                    default:
+                        drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE); // Default for any other unhandled types
+                        break;
+                }
             }
             tile.appendChild(canvas);
             tile.addEventListener('click', () => onTileClickCallback(r, c));

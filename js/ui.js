@@ -432,7 +432,7 @@ export function renderHighlightsAndInfo(gameState) {
                     const status = visibilityGrid[r] ? visibilityGrid[r][c] : 0;
                     if (status === 0) { // Hidden
                         // tileEl.classList.add('fog-hidden'); // CSS class would be better
-                        tileEl.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                        tileEl.style.backgroundColor = 'rgba(200, 200, 200, 0.6)'; // New light grey semi-transparent overlay
                         // Ensure no other highlights are showing on hidden tiles
                         tileEl.classList.remove('possible-move', 'possible-attack', 'possible-heal', 'selected-unit-tile');
                     } else if (status === 1) { // Explored (not used yet, but could be for grayed out)

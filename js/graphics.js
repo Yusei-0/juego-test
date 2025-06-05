@@ -234,14 +234,15 @@ function animateRiver(gameState) {
 // --- Terrain Tile Drawing Functions ---
 
 function drawPrairieTile(ctx, tileWidth, tileHeight) {
-    ctx.fillStyle = '#A8C256'; // A lush, slightly desaturated green
+    ctx.fillStyle = '#8FBC8F'; // MediumSeaGreen
     ctx.fillRect(0, 0, tileWidth, tileHeight);
 
-    // Optional: Add some subtle texture or variation
-    ctx.fillStyle = 'rgba(0,0,0,0.03)';
-    for (let i = 0; i < 10; i++) {
-        ctx.fillRect(Math.random() * tileWidth, Math.random() * tileHeight, 2, 2);
-    }
+    // Optional: Add some subtle texture or variation (can be kept or removed)
+    // For this change, let's remove the random dots to ensure the color is flat as per typical spawn indication
+    // ctx.fillStyle = 'rgba(0,0,0,0.03)';
+    // for (let i = 0; i < 10; i++) {
+    //     ctx.fillRect(Math.random() * tileWidth, Math.random() * tileHeight, 2, 2);
+    // }
 }
 
 function drawMountainTile(ctx, tileWidth, tileHeight) {
