@@ -44,15 +44,24 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
         createUnitElement(gameState, unitData); // From ui.js
     };
 
-    placeUnit(createUnitData('BASE', 1, 0), BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2)); // From boardUtils.js
+    // Player 1 Units (IDs 0-4)
+    placeUnit(createUnitData('BASE', 1, 0), BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2));
     placeUnit(createUnitData('GUERRERO', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
     placeUnit(createUnitData('ARQUERO', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
     placeUnit(createUnitData('GIGANTE', 1, 3), BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2));
+    // Coloca unidades adicionales (Sanador y Unidad Voladora) para el Jugador 1
+    placeUnit(createUnitData('SANADOR', 1, 4), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 2); // New ID 4
+    placeUnit(createUnitData('UNIDAD_VOLADORA', 1, 5), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 2); // New ID 5
 
+    // Player 2 Units (IDs 0-4, unique per player but can overlap with P1's IDs as they are prefixed p1- p2-)
+    // For consistency with previous structure, using 0,1,2,3,4,5 as IDs
     placeUnit(createUnitData('BASE', 2, 0), 0, Math.floor(BOARD_COLS / 2));
     placeUnit(createUnitData('GUERRERO', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
     placeUnit(createUnitData('ARQUERO', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
     placeUnit(createUnitData('GIGANTE', 2, 3), 2, Math.floor(BOARD_COLS / 2));
+    // Coloca unidades adicionales (Sanador y Unidad Voladora) para el Jugador 2
+    placeUnit(createUnitData('SANADOR', 2, 4), 1, Math.floor(BOARD_COLS / 2) - 2); // New ID 4
+    placeUnit(createUnitData('UNIDAD_VOLADORA', 2, 5), 1, Math.floor(BOARD_COLS / 2) + 2); // New ID 5
 
     gameState.currentPlayer = 1;
     gameState.localPlayerNumber = 1;
@@ -187,6 +196,36 @@ export function canPlayerMakeAnyMoveLocal(gameState) {
         }
     }
     return false;
+}
+
+// Realiza la acción de curar a una unidad aliada.
+export async function performHealLocal(gameState, healerData, targetData, healAmount) {
+    gameState.isAnimating = true;
+    clearHighlightsAndSelection(gameState);
+    renderHighlightsAndInfo(gameState);
+
+    addLogEntry(gameState, `Unidad ${UNIT_TYPES[healerData.type].name} (J${healerData.player}) cura a ${UNIT_TYPES[targetData.type].name} (J${targetData.player}) por ${healAmount} PV.`, 'heal');
+
+    const oldHp = targetData.hp;
+    // Aplica la curación, sin exceder los PV máximos.
+    targetData.hp = Math.min(targetData.maxHp, targetData.hp + healAmount);
+    addLogEntry(gameState, `${UNIT_TYPES[targetData.type].name} (J${targetData.player}) PV: ${oldHp} -> ${targetData.hp}.`, 'info');
+
+    playSound('heal', 'C5'); // Placeholder sound
+
+    // Feedback visual simple para la curación.
+    const targetElement = gameState.units[targetData.id];
+    if (targetElement) {
+        targetElement.classList.add('unit-healed');
+        updateUnitHPDisplay(gameState, targetData);
+        renderUnitRosterLocal(gameState);
+
+        await new Promise(r => setTimeout(r, 300)); // Duration for the 'healed' effect
+        if (targetElement) targetElement.classList.remove('unit-healed');
+    }
+
+    gameState.isAnimating = false;
+    if (gameState.gameActive) switchTurnLocal(gameState);
 }
 
 export function updateUnitHPDisplay(gameState, unitData) {

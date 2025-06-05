@@ -2,7 +2,7 @@
 import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
 import { getTileType } from './boardUtils.js'; // Updated import
 import { performMoveOnline, performAttackOnline } from './onlineGame.js';
-import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal } from './localGame.js';
+import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, performHealLocal } from './localGame.js';
 import { renderHighlightsAndInfo } from './ui.js';
 
 export function onTileClick(gameState, row, col) {
@@ -30,6 +30,17 @@ export function onTileClick(gameState, row, col) {
                 moveUnitAndAnimateLocal(gameState, actingUnitData, row, col);
             } else if (highlightedAction.type === 'attack') {
                 attackUnitAndAnimateLocal(gameState, actingUnitData, gameState.board[row][col]);
+            } else if (highlightedAction.type === 'heal') {
+                // Maneja la acción de curación.
+                // Ensure the target unit data is correctly passed
+                const targetUnitDataOnTile = gameState.board[row][col];
+                if (targetUnitDataOnTile && targetUnitDataOnTile.id === highlightedAction.targetId) {
+                     // performHealLocal will be created in the next step.
+                     // For now, this call implies its future existence.
+                    performHealLocal(gameState, actingUnitData, targetUnitDataOnTile, highlightedAction.healAmount);
+                } else {
+                    console.error("Heal target mismatch or not found on tile!");
+                }
             }
         }
     }
@@ -84,8 +95,19 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
                 for(const [dr,dc] of n){
                     const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;
                     if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){
-                        const tt=getTileType(nr,nc);
-                        if(tt!=='river'&& (!gameState.board[nr] || !gameState.board[nr][nc])){ // Check board bounds and if tile is empty
+                        const tileIsEmpty = (!gameState.board[nr] || !gameState.board[nr][nc]);
+                        let canMoveToTile = false;
+
+                        // Comprueba si la unidad es voladora para aplicar reglas de movimiento especiales
+                        if (unitData.type === 'UNIDAD_VOLADORA') {
+                            canMoveToTile = tileIsEmpty; // Flying unit can only be blocked by another unit at the destination
+                        } else {
+                            // Reglas de movimiento estándar para unidades terrestres
+                            const tt = getTileType(nr, nc); // Get tile type only if not a flyer
+                            canMoveToTile = tt !== 'river' && tileIsEmpty; // Standard ground unit movement rules
+                        }
+
+                        if (canMoveToTile) {
                             const a={unitId:unitData.id,fromR:startR,fromC:startC,row:nr,col:nc,type:'move'};
                             possibleActions.push(a);
                             if(updateGlobalHighlights)gameState.highlightedMoves.push(a);
@@ -108,6 +130,46 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
                         const a={unitId:unitData.id,fromR:startR,fromC:startC,row:tr,col:tc,type:'attack',targetId:tudob.id};
                         possibleActions.push(a);
                         if(updateGlobalHighlights)gameState.highlightedMoves.push(a);
+                    }
+                }
+            }
+        }
+    }
+
+    // Lógica para calcular acciones de curación para el Sanador.
+    if (unitData.type === 'SANADOR') {
+        const { healRange, healAmount } = UNIT_TYPES[unitData.type];
+        if (healRange > 0 && healAmount > 0) { // Check if unit can heal
+            // Comprueba las casillas adyacentes (según healRange) para unidades aliadas heridas.
+            for (let ro = -healRange; ro <= healRange; ro++) {
+                for (let co = -healRange; co <= healRange; co++) {
+                    if (Math.abs(ro) + Math.abs(co) > healRange || (ro === 0 && co === 0)) continue; // Check Manhattan distance and ignore self tile
+
+                    const tr = startR + ro;
+                    const tc = startC + co;
+
+                    if (tr >= 0 && tr < BOARD_ROWS && tc >= 0 && tc < BOARD_COLS) {
+                        const targetUnitData = gameState.board[tr] ? gameState.board[tr][tc] : null;
+                        if (targetUnitData &&
+                            targetUnitData.player === unitData.player &&
+                            targetUnitData.id !== unitData.id &&
+                            targetUnitData.hp < targetUnitData.maxHp) {
+
+                            const healAction = {
+                                unitId: unitData.id,
+                                fromR: startR,
+                                fromC: startC,
+                                row: tr,
+                                col: tc,
+                                type: 'heal',
+                                targetId: targetUnitData.id,
+                                healAmount: healAmount // Store heal amount for action
+                            };
+                            possibleActions.push(healAction);
+                            if (updateGlobalHighlights) {
+                                gameState.highlightedMoves.push(healAction);
+                            }
+                        }
                     }
                 }
             }

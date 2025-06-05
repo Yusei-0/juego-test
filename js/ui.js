@@ -321,8 +321,8 @@ export function displayTutorial() {
 }
 
 export function renderHighlightsAndInfo(gameState) {
-    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack')
-        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack'));
+    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack, .tile.possible-heal')
+        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack', 'possible-heal'));
     document.querySelectorAll('.unit.pulse-target').forEach(el => el.classList.remove('pulse-target'));
 
     if (gameState.selectedUnit && gameState.selectedUnit.data) { // Ensure selectedUnit and its data exist
@@ -338,11 +338,25 @@ export function renderHighlightsAndInfo(gameState) {
             if(gameBoardElement) {
                 const tileEl = gameBoardElement.querySelector(`.tile[data-row='${move.row}'][data-col='${move.col}']`);
                 if (tileEl) {
-                    tileEl.classList.add(move.type === 'move' ? 'possible-move' : 'possible-attack');
-                    if (move.type === 'attack' && gameState.board[move.row] && gameState.board[move.row][move.col]) {
-                        const targetUnitData = gameState.board[move.row][move.col];
-                        if(targetUnitData && gameState.units[targetUnitData.id]) {
-                            gameState.units[targetUnitData.id].classList.add('pulse-target');
+                    if (move.type === 'move') {
+                        tileEl.classList.add('possible-move');
+                    } else if (move.type === 'attack') {
+                        tileEl.classList.add('possible-attack');
+                        // Pulse target logic for attack remains here
+                        if (gameState.board[move.row] && gameState.board[move.row][move.col]) {
+                            const targetUnitData = gameState.board[move.row][move.col];
+                            if(targetUnitData && gameState.units[targetUnitData.id]) {
+                                gameState.units[targetUnitData.id].classList.add('pulse-target');
+                            }
+                        }
+                    } else if (move.type === 'heal') {
+                        tileEl.classList.add('possible-heal'); // Resalta la casilla como un posible objetivo de curación.
+                        // Optional: Pulse target logic for heal (e.g., make the heal target pulse green)
+                        if (gameState.board[move.row] && gameState.board[move.row][move.col]) {
+                            const targetUnitData = gameState.board[move.row][move.col];
+                            if(targetUnitData && gameState.units[targetUnitData.id]) {
+                                // Example: gameState.units[targetUnitData.id].classList.add('pulse-heal-target');
+                            }
                         }
                     }
                 }
