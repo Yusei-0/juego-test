@@ -88,7 +88,7 @@ export function canPlayerMakeAnyMoveOnline(gameState, playerId, gameData) { // A
 
 // This function doesn't directly use the main `gameState`, but operates on a passed `boardState`.
 
-async function handleSurrenderOnline(gameState) {
+export async function handleSurrenderOnline(gameState) {
     if (!gameState || !gameState.gameActive || !gameState.currentGameId || !firestoreDB || !gameState.localPlayerId) return;
     if (gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.status !== 'active') return; // Don't surrender if game already ended
 
