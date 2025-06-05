@@ -7,39 +7,60 @@ import { renderHighlightsAndInfo, showEndGameModal } from './ui.js';
 import { firestoreDB, doc, runTransaction } from './firebase.js';
 
 export function checkTurnLimit(gameState) {
-    const currentTurn = gameState.gameMode === 'online' ? gameState.currentFirebaseGameData.currentTurn : gameState.currentTurn;
+    console.log(`[checkTurnLimit] Called. Mode: ${gameState.gameMode}, LocalTurn: ${gameState.currentTurn}, OnlineTurn: ${gameState.currentFirebaseGameData ? gameState.currentFirebaseGameData.currentTurn : 'N/A'}, Game Active: ${gameState.gameActive}, MaxTurns: ${MAX_TURNS}`);
 
-    if (currentTurn < MAX_TURNS) {
+    const turnToCompare = gameState.gameMode === 'online' ? (gameState.currentFirebaseGameData ? gameState.currentFirebaseGameData.currentTurn : 0) : gameState.currentTurn;
+
+    if (turnToCompare < MAX_TURNS) {
+        // console.log(`[checkTurnLimit] Turn limit not reached. Current: ${turnToCompare}, Max: ${MAX_TURNS}`); // Optional: log for not reaching
         return;
     }
+    // gameState.gameActive is checked by the callers (switchTurnLocal, updateBoardFromFirestore)
+    // but we can add a redundant check here if necessary, or rely on callers.
+    // For now, assuming callers ensure it's only called on active games or the gameActive flag is handled correctly after this.
 
-    let player1TotalHp = 0;
-    let player2TotalHp = 0;
-    const units = gameState.gameMode === 'online' ? gameState.currentFirebaseGameData.units : gameState.units;
+    console.log(`[checkTurnLimit] Turn limit ${MAX_TURNS} reached or exceeded. Proceeding to HP calculation. TurnToCompare: ${turnToCompare}`);
+
+    console.log(`[checkTurnLimit] Turn limit ${MAX_TURNS} reached or exceeded. Proceeding to HP calculation. TurnToCompare: ${turnToCompare}`);
+
+    player1TotalHp = 0; // Ensure they are reset before calculation
+    player2TotalHp = 0;
 
     if (gameState.gameMode === 'online') {
-        for (const unitId in units) {
-            const unit = units[unitId];
-            if (unit.player === 1) {
-                player1TotalHp += unit.hp;
-            } else if (unit.player === 2) {
-                player2TotalHp += unit.hp;
+        const unitsToSum = gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.units ? gameState.currentFirebaseGameData.units : {};
+        for (const unitId in unitsToSum) {
+            const unitData = unitsToSum[unitId];
+            if (unitData && typeof unitData.hp === 'number') { // Check type
+                if (unitData.player === 1) {
+                    player1TotalHp += unitData.hp;
+                } else if (unitData.player === 2) {
+                    player2TotalHp += unitData.hp;
+                }
+            } else {
+                console.warn(`[checkTurnLimit] Online: Unit ${unitId} has invalid HP data:`, unitData);
             }
         }
-    } else { // Local or vsAI
-        for (const unitId in units) {
-            const unitElement = units[unitId]; // These are HTMLElements
-            const unitData = unitElement.__unitData;
-            if (unitData.player === 1) {
-                player1TotalHp += unitData.hp;
-            } else if (unitData.player === 2) {
-                player2TotalHp += unitData.hp;
+    } else { // Local / AI games
+        const localUnits = gameState.units || {};
+        for (const unitId in localUnits) {
+            const unitElement = localUnits[unitId];
+            if (unitElement && unitElement.__unitData && typeof unitElement.__unitData.hp === 'number') { // Check type and existence
+                const unitData = unitElement.__unitData;
+                if (unitData.player === 1) {
+                    player1TotalHp += unitData.hp;
+                } else if (unitData.player === 2) {
+                    player2TotalHp += unitData.hp;
+                }
+            } else {
+                console.warn(`[checkTurnLimit] Local: Unit ${unitId} has invalid HP data on element:`, unitElement);
             }
         }
     }
 
     let winner = null;
     let reason = `Límite de ${MAX_TURNS} turnos alcanzado`;
+
+    console.log(`[checkTurnLimit] HP Calculated. P1HP: ${player1TotalHp}, P2HP: ${player2TotalHp}`);
 
     if (player1TotalHp > player2TotalHp) {
         winner = 1;
@@ -49,6 +70,7 @@ export function checkTurnLimit(gameState) {
         reason += ", ¡Empate en HP!";
     }
 
+    console.log(`[checkTurnLimit] Game ending by turn limit. Winner: ${winner}, Reason: '${reason}'`);
     gameState.gameActive = false; // Set game as inactive
 
     if (gameState.gameMode === 'online') {
@@ -81,6 +103,7 @@ export function checkTurnLimit(gameState) {
         // The onSnapshot listener in onlineGame.js will handle calling showEndGameModal
         // once it receives the updated game state. We don't call it directly here for online.
     } else {
+        // Ensure endGameLocal is also aware of the HPs for consistent modal display if called from here
         endGameLocal(gameState, winner, reason, player1TotalHp, player2TotalHp);
     }
 }
