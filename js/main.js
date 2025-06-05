@@ -40,6 +40,13 @@ async function handleFirebaseAuthStateChanged(user) {
         gameState.localPlayerId = user.uid;
         if(playerUserIdDisplay_Lobby) playerUserIdDisplay_Lobby.textContent = user.uid.substring(0,12) + "...";
         console.log("Autenticado como:", user.uid);
+
+        // Explicitly hide the authLoadingScreen
+        if (authLoadingScreen) {
+            console.log("Explicitly hiding authLoadingScreen from main.js");
+            authLoadingScreen.style.display = 'none';
+        }
+
         showScreen(mainMenuScreen.id);
 
         // Configure and set up event listener for the main menu component
