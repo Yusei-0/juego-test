@@ -15,7 +15,11 @@ import {
     backToMainMenuBtn_Tutorial, // New
     displayPatchNotes, // Added for patch notes
     backToMainMenuBtn_PatchNotes, // Added for patch notes back button
-    initializeSummonUI // Added for summon UI initialization
+    initializeSummonUI, // Added for summon UI initialization
+    summonUnitBtn, // Element for summon button
+    closeSummonModal, // Element for closing summon modal
+    showSummonUnitModal, // Function to show summon modal
+    hideSummonUnitModal // Function to hide summon modal
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame, handleSurrenderOnline } from './onlineGame.js';
@@ -237,5 +241,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(authLoadingScreen) {
             authLoadingScreen.innerHTML = `<h2>Error Fatal</h2><p>Firebase no pudo inicializarse: ${firebaseInitResult.error.message || firebaseInitResult.error}. El juego no puede continuar.</p>`;
         }
+    }
+
+    // Event listener for the main summon button
+    if (summonUnitBtn) {
+        summonUnitBtn.addEventListener('click', () => {
+            console.log("MAIN: Summon Unit button clicked.");
+            if (gameState && gameState.gameActive) {
+                if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber) {
+                    console.log("MAIN: Not showing summon modal, it's AI's turn.");
+                    showNotification("Aviso", "Es el turno de la IA.");
+                    return;
+                }
+                showSummonUnitModal(gameState);
+            } else {
+                console.warn("MAIN: Summon button clicked, but game not active or gameState not available.");
+            }
+        });
+    } else {
+        console.warn("MAIN: summonUnitBtn element not found. Listener not attached.");
+    }
+
+    // Event listener for the close button on the summon modal
+    if (closeSummonModal) {
+        closeSummonModal.addEventListener('click', () => {
+            console.log("MAIN: Close Summon Modal button clicked.");
+            hideSummonUnitModal();
+        });
+    } else {
+        console.warn("MAIN: closeSummonModal element not found. Listener not attached.");
     }
 });
