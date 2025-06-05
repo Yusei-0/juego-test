@@ -575,7 +575,7 @@ export async function displayPatchNotes() {
             patchVersionSelector.appendChild(option);
             updatePatchNotesContent("Error");
         } else {
-            const knownVersions = ['1.1.0', '1.0.0']; // Must match fetchAndParsePatchNotes
+            const knownVersions = ['1.1.1', '1.1.0', '1.0.0']; // Must match fetchAndParsePatchNotes
             let defaultVersionSelected = false;
 
             knownVersions.forEach(version => {
