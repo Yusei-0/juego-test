@@ -233,7 +233,7 @@ function animateRiver(gameState) {
 
 // --- Terrain Tile Drawing Functions ---
 
-export function drawPrairieTile(ctx, tileWidth, tileHeight) {
+function drawPrairieTile(ctx, tileWidth, tileHeight) {
     ctx.fillStyle = '#A8C256'; // A lush, slightly desaturated green
     ctx.fillRect(0, 0, tileWidth, tileHeight);
 
@@ -244,7 +244,7 @@ export function drawPrairieTile(ctx, tileWidth, tileHeight) {
     }
 }
 
-export function drawMountainTile(ctx, tileWidth, tileHeight) {
+function drawMountainTile(ctx, tileWidth, tileHeight) {
     // Base color (can be prairie or a darker earth tone if mountain is on it)
     ctx.fillStyle = '#A8C256'; // Prairie base, assuming mountains rise from it
     ctx.fillRect(0, 0, tileWidth, tileHeight);
@@ -277,7 +277,7 @@ export function drawMountainTile(ctx, tileWidth, tileHeight) {
 }
 
 
-export function drawForestTile(ctx, tileWidth, tileHeight) {
+function drawForestTile(ctx, tileWidth, tileHeight) {
     // Base color (prairie, assuming forest grows on it)
     ctx.fillStyle = '#A8C256';
     ctx.fillRect(0, 0, tileWidth, tileHeight);
@@ -308,7 +308,7 @@ export function drawForestTile(ctx, tileWidth, tileHeight) {
     drawPixel(ctx, 10, 4, leavesDarkColor, pSize, artOffsetX, artOffsetY);
 }
 
-export function drawSwampTile(ctx, tileWidth, tileHeight) {
+function drawSwampTile(ctx, tileWidth, tileHeight) {
     ctx.fillStyle = '#556B2F'; // DarkOliveGreen - base murky water
     ctx.fillRect(0, 0, tileWidth, tileHeight);
 
