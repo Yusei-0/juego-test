@@ -1,7 +1,7 @@
 // gameState will be passed as an argument to functions needing it from main.js
-import { calculatePossibleMovesAndAttacksForUnit } from './gameActions.js';
-import { attackUnitAndAnimateLocal, moveUnitAndAnimateLocal, switchTurnLocal } from './localGame.js';
-import { aiTurnIndicator } from './ui.js'; // Assuming aiTurnIndicator is exported from ui.js
+import { calculatePossibleMovesAndAttacksForUnit } from '../core/gameActions.js';
+import { attackUnitAndAnimateLocal, moveUnitAndAnimateLocal, switchTurnLocal } from '../core/localGame.js';
+import { aiTurnIndicator } from '../views/ui.js'; // Assuming aiTurnIndicator is exported from ui.js
 
 export function aiTakeTurn(gameState) {
     if (!gameState.gameActive || gameState.currentPlayer !== gameState.aiPlayerNumber) return;

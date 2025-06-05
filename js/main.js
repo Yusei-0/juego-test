@@ -1,6 +1,6 @@
-import { initializeFirebase } from './firebase.js';
-import { initializeSounds } from './sound.js';
-import { animateRiver } from './graphics.js';
+import { initializeFirebase } from './services/firebase.js';
+import { initializeSounds } from './services/sound.js';
+import { animateRiver } from './views/graphics.js';
 import {
     authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen,
     gameContainer, gameOverModal, /*localMultiplayerBtn, vsAIBtn, onlineMultiplayerBtn,*/ // Removed old button imports
@@ -12,11 +12,11 @@ import {
     renderHighlightsAndInfo, renderUnitRosterLocal,
     displayTutorial, // New
     backToMainMenuBtn_Tutorial // New
-} from './ui.js';
-import { initializeLocalBoardAndUnits } from './localGame.js';
-import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
-import { onTileClick } from './gameActions.js';
-import { defineComponent } from './elemental.js';
+} from './views/ui.js';
+import { initializeLocalBoardAndUnits } from './core/localGame.js';
+import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './core/onlineGame.js';
+import { onTileClick } from './core/gameActions.js';
+import { defineComponent } from './core/elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
 import { GameMenuComponent } from './components/GameMenu.js';
 import { GameLogComponent } from './components/GameLog.js';

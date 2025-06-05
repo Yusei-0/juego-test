@@ -1,9 +1,10 @@
 // gameState will be passed as an argument to functions needing it.
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
+import { BOARD_ROWS, BOARD_COLS } from '../config/constants.js';
 import { getTileType } from './boardUtils.js'; // Updated import
+import River from '../terrain/River.js'; // Import River
 import { performMoveOnline, performAttackOnline } from './onlineGame.js';
 import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal } from './localGame.js';
-import { renderHighlightsAndInfo } from './ui.js';
+import { renderHighlightsAndInfo } from '../views/ui.js';
 
 export function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
@@ -71,8 +72,8 @@ export function clearHighlightsAndSelection(gameState) {
 
 export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, updateGlobalHighlights = false) {
     const possibleActions = [];
-    if (!unitData || !UNIT_TYPES[unitData.type]) return possibleActions; // Guard against undefined unit type
-    const { movement, range, isMobile } = UNIT_TYPES[unitData.type]; // Destructure isMobile
+    if (!unitData) return possibleActions; // unitData is now an object, so this check is sufficient
+    const { movement, range, isMobile } = unitData; // Destructure directly from unitData
     const startR = unitData.row; const startC = unitData.col;
 
     if (movement > 0 && isMobile) { // Check isMobile before calculating moves
@@ -84,8 +85,8 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
                 for(const [dr,dc] of n){
                     const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;
                     if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){
-                        const tt=getTileType(nr,nc);
-                        if(tt!=='river'&& (!gameState.board[nr] || !gameState.board[nr][nc])){ // Check board bounds and if tile is empty
+                        const terrainType = getTileType(nr,nc);
+                        if(!(terrainType instanceof River) && (!gameState.board[nr] || !gameState.board[nr][nc])){ // Check board bounds and if tile is empty, and not River
                             const a={unitId:unitData.id,fromR:startR,fromC:startC,row:nr,col:nc,type:'move'};
                             possibleActions.push(a);
                             if(updateGlobalHighlights)gameState.highlightedMoves.push(a);

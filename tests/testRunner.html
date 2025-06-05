@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Logic Tests</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        #results { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        .log-message { padding: 2px 0; }
+        .log-error { color: red; font-weight: bold; }
+        .log-info { color: green; }
+        .log-assert-fail { color: orange; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Game Logic Test Runner</h1>
+    <p>Open the browser's developer console to see detailed test assertions.</p>
+    <div id="results">
+        <p>Test logs will also appear in the console.</p>
+    </div>
+
+    <script type="module">
+        // Simple logger to display results on the page as well as console
+        const resultsDiv = document.getElementById('results');
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleAssert = console.assert;
+
+        function logToPage(message, type = 'log') {
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.classList.add('log-message');
+            if (type === 'error') {
+                p.classList.add('log-error');
+            } else if (type === 'info') {
+                 p.classList.add('log-info');
+            } else if (type === 'assert-fail') {
+                p.classList.add('log-assert-fail');
+            }
+            resultsDiv.appendChild(p);
+        }
+
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            logToPage(args.join(' '), args[0] && args[0].includes("passed.") ? 'info' : 'log');
+        };
+
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            logToPage('ERROR: ' + args.join(' '), 'error');
+        };
+
+        console.assert = function(condition, ...args) {
+            originalConsoleAssert.apply(console, [condition, ...args]);
+            if (!condition) {
+                logToPage('ASSERTION FAILED: ' + args.join(' '), 'assert-fail');
+            }
+        };
+
+        // Clear results div at the start
+        resultsDiv.innerHTML = '';
+        logToPage("Starting tests...", "log");
+
+    </script>
+
+    <script type="module" src="unitTests.js"></script>
+    <script type="module" src="terrainTests.js"></script>
+
+    <script type="module">
+        console.log("All test modules loaded and executed.");
+        logToPage("All test modules loaded and executed.", "info");
+    </script>
+</body>
+</html>

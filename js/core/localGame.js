@@ -1,11 +1,12 @@
 // gameState will be passed as an argument to functions needing it from main.js
-import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
+import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from '../config/constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
-import { playSound } from './sound.js';
-import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
-import { aiTakeTurn } from './ai.js';
+import { playSound } from '../services/sound.js';
+import River from '../terrain/River.js'; // Import River
+import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from '../views/ui.js';
+import { aiTakeTurn } from '../services/ai.js';
 import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
-import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
+import { getTileType, createUnitData } from './boardUtils.js';
 
 export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     gameState.board = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
@@ -22,11 +23,11 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const tile = document.createElement('div');
-            const tileType = getTileType(r, c); // From boardUtils.js
-            tile.classList.add('tile', tileType);
+            const tileTypeInstance = getTileType(r, c); // From boardUtils.js, returns instance
+            tile.classList.add('tile', tileTypeInstance.type); // Use .type for class name
             tile.dataset.row = r;
             tile.dataset.col = c;
-            if (tileType === 'river') {
+            if (tileTypeInstance instanceof River) { // Check instanceof River
                 const canvas = document.createElement('canvas');
                 canvas.width = TILE_SIZE; canvas.height = TILE_SIZE;
                 canvas.classList.add('river-canvas');
@@ -77,7 +78,7 @@ export async function moveUnitAndAnimateLocal(gameState, unitData, toR, toC) {
     renderHighlightsAndInfo(gameState);
     const unitElement = gameState.units[unitData.id];
     const fromR = unitData.row; const fromC = unitData.col;
-    addLogEntry(gameState, `Unidad ${UNIT_TYPES[unitData.type].name} (J${unitData.player}) se mueve de (${fromR},${fromC}) a (${toR},${toC}).`, 'move');
+    addLogEntry(gameState, `Unidad ${unitData.name} (J${unitData.player}) se mueve de (${fromR},${fromC}) a (${toR},${toC}).`, 'move');
     playSound('move', 'E4');
     const targetTransform = `translate(${toC * TILE_SIZE}px, ${toR * TILE_SIZE}px)`;
     unitElement.style.transform = targetTransform;
@@ -98,7 +99,7 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
     renderHighlightsAndInfo(gameState);
     const attackerElement = gameState.units[attackerData.id];
     const targetElement = gameState.units[targetData.id];
-    addLogEntry(gameState, `Unidad ${UNIT_TYPES[attackerData.type].name} (J${attackerData.player}) ataca a ${UNIT_TYPES[targetData.type].name} (J${targetData.player}).`, 'attack');
+    addLogEntry(gameState, `Unidad ${attackerData.name} (J${attackerData.player}) ataca a ${targetData.name} (J${targetData.player}).`, 'attack');
     playSound('attack');
     const originalAttackerTransform = `translate(${attackerData.col*TILE_SIZE}px, ${attackerData.row*TILE_SIZE}px)`;
     const lungeDx = (targetData.col-attackerData.col)*TILE_SIZE/4;
@@ -109,7 +110,7 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
     await new Promise(r=>setTimeout(r,150));
 
     targetData.hp -= attackerData.attack;
-    addLogEntry(gameState, `${UNIT_TYPES[targetData.type].name} (J${targetData.player}) recibe ${attackerData.attack} daño. PV: ${Math.max(0,targetData.hp)}.`, 'damage');
+    addLogEntry(gameState, `${targetData.name} (J${targetData.player}) recibe ${attackerData.attack} daño. PV: ${Math.max(0,targetData.hp)}.`, 'damage');
     playSound('damage', targetData.hp<=0?'A2':'A3');
     if (targetElement) {
         targetElement.classList.add('unit-damaged');
@@ -120,7 +121,7 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
     }
 
     if(targetData.hp<=0){
-        addLogEntry(gameState, `¡${UNIT_TYPES[targetData.type].name} (J${targetData.player}) destruido!`, 'death');
+        addLogEntry(gameState, `¡${targetData.name} (J${targetData.player}) destruido!`, 'death');
         playSound('death');
         if (targetElement) {
             const currentTransform = targetElement.style.transform;
@@ -181,7 +182,7 @@ export function canPlayerMakeAnyMoveLocal(gameState) {
     for (const unitId in gameState.units) {
         const unitElement = gameState.units[unitId];
         const unitData = unitElement.__unitData;
-        if (unitData && unitData.player === playerNumber && UNIT_TYPES[unitData.type].isMobile) {
+        if (unitData && unitData.player === playerNumber && unitData.isMobile) { // Use unitData.isMobile
             const possibleActions = calculatePossibleMovesAndAttacksForUnit(gameState, unitData, false);
             if (possibleActions.length > 0) return true;
         }

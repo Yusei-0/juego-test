@@ -1,13 +1,14 @@
-import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc } from './firebase.js';
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
-import { playSound } from './sound.js';
+import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc } from '../services/firebase.js';
+import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from '../config/constants.js';
+import { playSound } from '../services/sound.js';
+import River from '../terrain/River.js'; // Import River
 import {
     showNotification, addLogEntry, clearHighlightsAndSelection, renderHighlightsAndInfo,
     renderUnitRosterOnline, showScreen, showEndGameModal, gameBoardElement, unitLayerElement,
     waitingGameIdDisplay, waitingStatusText, playerListDiv, gameIdInfoDisplay, createUnitElement
-} from './ui.js';
+} from '../views/ui.js';
 import { getTileType, createUnitData } from './boardUtils.js';
-import { unitDrawFunctions } from './graphics.js';
+import { unitDrawFunctions } from '../views/graphics.js';
 import { onTileClick } from './gameActions.js'; // Assuming onTileClick is correctly set up in main.js to be passed
 
 
@@ -17,7 +18,7 @@ export async function performMoveOnline(gameState, unitData, toR, toC) {
     if (!gameState.currentGameId || !firestoreDB) return;
     gameState.isAnimating = true;
     const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
-    const newLogEntry = {text: `Unidad ${UNIT_TYPES[unitData.type].name} (J${unitData.player}) se mueve de (${unitData.row},${unitData.col}) a (${toR},${toC}).`, type:'move', timestamp:new Date().toISOString()};
+    const newLogEntry = {text: `Unidad ${unitData.name} (J${unitData.player}) se mueve de (${unitData.row},${unitData.col}) a (${toR},${toC}).`, type:'move', timestamp:new Date().toISOString()};
     try {
         await runTransaction(firestoreDB, async (transaction) => {
             const gameDoc = await transaction.get(gameRef); if (!gameDoc.exists()) throw "Game DNE!";
@@ -37,7 +38,7 @@ export async function performAttackOnline(gameState, attackerData, targetData) {
     if (!gameState.currentGameId || !firestoreDB || !targetData) return;
     gameState.isAnimating = true;
     const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
-    let attackerName=UNIT_TYPES[attackerData.type].name; let targetName=UNIT_TYPES[targetData.type].name; let damageDealt=UNIT_TYPES[attackerData.type].attack;
+    let attackerName = attackerData.name; let targetName = targetData.name; let damageDealt = attackerData.attack;
     let logEntries = [];
     logEntries.unshift({text:`Unidad ${attackerName} (J${attackerData.player}) ataca a ${targetName} (J${targetData.player}).`,type:'attack',timestamp:new Date().toISOString()});
     try {
@@ -45,7 +46,7 @@ export async function performAttackOnline(gameState, attackerData, targetData) {
             const gameDoc = await transaction.get(gameRef); if(!gameDoc.exists()) throw "Game DNE!";
             const gd = gameDoc.data(); const uU = {...gd.units}; const fA = uU[attackerData.id]; const fT = uU[targetData.id];
             if(!fA || !fT || fA.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid attack.";
-            fT.hp -= damageDealt;
+            fT.hp -= damageDealt; // Use damageDealt (derived from attackerData.attack)
             logEntries.unshift({text:`${targetName} (J${fT.player}) recibe ${damageDealt} daño. PV: ${Math.max(0,fT.hp)}.`,type:'damage',timestamp:new Date().toISOString()});
             let nS=gd.status; let wR=gd.winnerReason||"";
             if(fT.hp<=0){
@@ -78,7 +79,7 @@ export function canPlayerMakeAnyMoveOnline(gameState, playerId, gameData) { // A
     for (const unitId in gameData.units) {
         const unitData = gameData.units[unitId];
         // Pass gameState to calculatePossibleMovesAndAttacksForUnit_Firestore if it needs it, though it seems to only need boardState.
-        if (unitData && unitData.player === playerNumber && UNIT_TYPES[unitData.type].isMobile) {
+        if (unitData && unitData.player === playerNumber && unitData.isMobile) { // Use unitData.isMobile
             const possibleActions = calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, tempBoard);
             if (possibleActions.length > 0) return true;
         }
@@ -89,11 +90,11 @@ export function canPlayerMakeAnyMoveOnline(gameState, playerId, gameData) { // A
 // This function doesn't directly use the main `gameState`, but operates on a passed `boardState`.
 export function calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, boardState) {
     const possibleActions = [];
-    if (!unitData || !UNIT_TYPES[unitData.type]) return possibleActions;
-    const { movement, range, isMobile } = UNIT_TYPES[unitData.type];
+    if (!unitData) return possibleActions; // Use unitData directly
+    const { movement, range, isMobile } = unitData; // Destructure from unitData
     const startR = unitData.row; const startC = unitData.col;
 
-    if(movement>0 && isMobile){ // Use destructured isMobile
+    if(movement>0 && isMobile){
         let q=[{r:startR,c:startC,dist:0}],v=new Set([`${startR},${startC}`]);
         while(q.length>0){
             let curr=q.shift();
@@ -102,9 +103,9 @@ export function calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, boar
                 for(const [dr,dc] of n){
                     const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;
                     if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){
-                        const tt=getTileType(nr,nc); // From boardUtils.js
-                        if(tt!=='river'&& (!boardState[nr] || !boardState[nr][nc])){
-                            possibleActions.push({type:'move'}); return possibleActions;
+                        const terrainType = getTileType(nr,nc); // From boardUtils.js
+                        if(!(terrainType instanceof River) && (!boardState[nr] || !boardState[nr][nc])){ // Check instanceof River
+                            possibleActions.push({type:'move'}); return possibleActions; // Early exit if a move is found
                         }
                     }
                 }
@@ -186,10 +187,10 @@ export function initializeBoardAndUnitsFirebase(gameState, onTileClickCallback) 
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const tile = document.createElement('div');
-            const tileType = getTileType(r, c);
-            tile.classList.add('tile', tileType);
+            const tileTypeInstance = getTileType(r, c); // Returns instance
+            tile.classList.add('tile', tileTypeInstance.type); // Use .type for class
             tile.dataset.row = r; tile.dataset.col = c;
-            if (tileType === 'river') {
+            if (tileTypeInstance instanceof River) { // Check instanceof River
                 const canvas = document.createElement('canvas');
                 canvas.width = TILE_SIZE; canvas.height = TILE_SIZE;
                 canvas.classList.add('river-canvas');

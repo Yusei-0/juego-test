@@ -1,5 +1,5 @@
-import { firebaseConfig } from './config.js';
-import { authLoadingScreen } from './ui.js'; // Added import
+import { firebaseConfig } from '../config/firebaseConfig.js';
+import { authLoadingScreen } from '../views/ui.js'; // Added import
 
 // Firebase SDK imports
 let firebaseApp, firebaseAuth, firestoreDB;

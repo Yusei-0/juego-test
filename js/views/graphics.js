@@ -1,4 +1,4 @@
-import { PIXEL_GRID_SIZE } from './constants.js';
+import { PIXEL_GRID_SIZE } from '../config/constants.js';
 // gameState is not available here, so we'll need to pass it or its relevant parts to animateRiver
 // For now, gameState references are commented out or will be passed as arguments.
 

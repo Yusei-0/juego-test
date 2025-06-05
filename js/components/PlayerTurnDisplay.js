@@ -1,4 +1,4 @@
-import { ElementalComponent } from '../elemental.js';
+import { ElementalComponent } from '../core/elemental.js';
 
 export class PlayerTurnDisplay extends ElementalComponent {
     static get template() {

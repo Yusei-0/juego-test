@@ -1,7 +1,7 @@
-import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
-import { playSound } from './sound.js';
+import { TILE_SIZE, UNIT_CANVAS_SIZE } from '../config/constants.js'; // Removed UNIT_TYPES
+import { playSound } from '../services/sound.js';
 import { unitDrawFunctions } from './graphics.js';
-import { tutorialHTMLContent } from './tutorial_content.js'; // New
+import { tutorialHTMLContent } from '../config/tutorial_content.js'; // New
 
 // DOM Element References
 export const authLoadingScreen = document.getElementById('authLoadingScreen');
@@ -216,7 +216,7 @@ export function renderUnitRosterLocal(gameState) {
             if (unitData.player === gameState.currentPlayer) {
                 unitsFound = true;
                 const p = document.createElement('p');
-                p.textContent = `${UNIT_TYPES[unitData.type].name}: ${unitData.hp}/${unitData.maxHp} PV`;
+                p.textContent = `${unitData.name}: ${unitData.hp}/${unitData.maxHp} PV`; // Use unitData.name
                 p.classList.add(unitData.player === 1 ? 'unit-entry-p1' : 'unit-entry-p2');
                 unitRosterPanel.appendChild(p);
             }
@@ -253,7 +253,7 @@ export function renderUnitRosterOnline(gameState) {
             if (unitData && unitData.player === playerNumberForRoster) {
                 unitsFound = true;
                 const p = document.createElement('p');
-                p.textContent = `${UNIT_TYPES[unitData.type].name}: ${unitData.hp}/${unitData.maxHp} PV`;
+                p.textContent = `${unitData.name}: ${unitData.hp}/${unitData.maxHp} PV`; // Use unitData.name
                 p.classList.add(unitData.player === 1 ? 'unit-entry-p1' : 'unit-entry-p2');
                 unitRosterPanel.appendChild(p);
             }
@@ -271,11 +271,11 @@ export function renderUnitRosterOnline(gameState) {
 export function updateSelectedUnitInfoPanel(gameState) {
     if (gameState.selectedUnit && gameState.selectedUnit.data) {
         const unit = gameState.selectedUnit.data;
-        const unitTypeData = UNIT_TYPES[unit.type];
-        if(unitNameText) unitNameText.textContent = `${unitTypeData.name} (J${unit.player})`;
+        // const unitTypeData = UNIT_TYPES[unit.type]; // This line is removed
+        if(unitNameText) unitNameText.textContent = `${unit.name} (J${unit.player})`; // Use unit.name
         if(unitHealthText) unitHealthText.textContent = `${unit.hp}/${unit.maxHp}`;
-        if(unitAttackText) unitAttackText.textContent = unitTypeData.attack;
-        if(unitMovementText) unitMovementText.textContent = unitTypeData.movement;
+        if(unitAttackText) unitAttackText.textContent = unit.attack; // Use unit.attack
+        if(unitMovementText) unitMovementText.textContent = unit.movement; // Use unit.movement
     } else {
         if(unitNameText) unitNameText.textContent = "Ninguna";
         if(unitHealthText) unitHealthText.textContent = "--";
