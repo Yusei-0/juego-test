@@ -11,13 +11,32 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     gameState.board = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
     gameState.units = {};
     gameState.riverCanvases = [];
-    if(unitLayerElement) unitLayerElement.innerHTML = '';
-    if(unitLayerElement) unitLayerElement.style.width = `${BOARD_COLS * TILE_SIZE}px`;
-    if(unitLayerElement) unitLayerElement.style.height = `${BOARD_ROWS * TILE_SIZE}px`;
 
-    if(gameBoardElement) gameBoardElement.innerHTML = '';
-    if(gameBoardElement) gameBoardElement.style.gridTemplateColumns = `repeat(${BOARD_COLS}, ${TILE_SIZE}px)`;
-    if(gameBoardElement) gameBoardElement.style.gridTemplateRows = `repeat(${BOARD_ROWS}, ${TILE_SIZE}px)`;
+    // 1. Clear gameBoardElement first. This removes unitLayer if it was a child.
+    if (gameBoardElement) gameBoardElement.innerHTML = '';
+
+    // 2. Ensure unitLayerElement (from ui.js, assumed to be the one from index.html)
+    //    is a child of gameBoardElement.
+    //    (unitLayerElement is already defined in the scope via import from ui.js)
+    if (gameBoardElement && unitLayerElement) {
+        if (!gameBoardElement.contains(unitLayerElement)) {
+            gameBoardElement.appendChild(unitLayerElement);
+        }
+    }
+
+    // 3. Now that unitLayerElement is confirmed to be in the DOM and attached to gameBoard,
+    //    clear its contents (old units).
+    if (unitLayerElement) unitLayerElement.innerHTML = '';
+
+    // 4. Apply styles (these can remain here or be moved after unitLayer re-attachment)
+    if (unitLayerElement) {
+        unitLayerElement.style.width = `${BOARD_COLS * TILE_SIZE}px`;
+        unitLayerElement.style.height = `${BOARD_ROWS * TILE_SIZE}px`;
+    }
+    if (gameBoardElement) {
+        gameBoardElement.style.gridTemplateColumns = `repeat(${BOARD_COLS}, ${TILE_SIZE}px)`;
+        gameBoardElement.style.gridTemplateRows = `repeat(${BOARD_ROWS}, ${TILE_SIZE}px)`;
+    }
 
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {

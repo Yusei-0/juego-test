@@ -12,16 +12,20 @@ export class GameLogComponent extends ElementalComponent {
     static get styles() {
         return `
         #logContainer {
-            margin-top: 0.75rem;
-            padding: 0.5rem;
-            height: 250px; /* From original #gameLogDisplay */
-            overflow-y: auto;
-            background-color: #1a202c; /* From original #gameLogDisplay */
-            border-radius: 0.3rem; /* From original #gameLogDisplay */
-            border: 1px solid #4a5568; /* From original #gameLogDisplay */
-            text-align: left;
-            font-size: 0.85rem; /* From original #gameLogDisplay */
-            font-family: 'Roboto Condensed', sans-serif;
+            margin-top: 0.75rem; /* Keep */
+            padding: 0.5rem; /* Keep */
+            /* height: 250px; REMOVED */
+            overflow-y: auto; /* CHANGED: ensure scrollbar if content exceeds max-height */
+            background-color: #1a202c; /* Keep */
+            border-radius: 0.3rem; /* Keep */
+            border: 1px solid #4a5568; /* Keep */
+            text-align: left; /* Keep */
+            font-size: 0.85rem; /* Keep */
+            font-family: 'Roboto Condensed', sans-serif; /* Keep */
+            flex-grow: 1; /* KEEP: allows it to grow up to max-height */
+            display: flex; /* KEEP */
+            flex-direction: column; /* KEEP */
+            max-height: 60vh; /* ADDED: limits the height to 60% of viewport height */
         }
         #logContainer p {
             margin-bottom: 0.3rem;
