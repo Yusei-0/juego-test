@@ -511,7 +511,7 @@ let allPatchNotes = {}; // Cache for parsed patch notes
 async function fetchAndParsePatchNotes() {
     // Return cached if already fetched and not an error state, or if it's an error but we have no known versions to try.
     // This allows re-fetching if there was an error AND we have versions to try.
-    const knownVersions = ['1.1.0', '1.0.0']; // Newest first for default selection
+    const knownVersions = [ '1.1.1', '1.1.0', '1.0.0' ]; // Newest first for default selection
     if (Object.keys(allPatchNotes).length > 0 && !allPatchNotes["Error"]) {
         return allPatchNotes;
     }
