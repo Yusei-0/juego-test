@@ -518,6 +518,7 @@ async function fetchAndParsePatchNotes() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const markdownText = await response.text();
+        console.log("Starting patch notes parsing. Full text:", markdownText); // LOGGING
 
         allPatchNotes = {}; // Clear before repopulating
 
@@ -528,10 +529,12 @@ async function fetchAndParsePatchNotes() {
         while ((match = versionRegex.exec(markdownText)) !== null) {
             const versionNumber = match[1].trim();
             const content = match[2].trim();
+            console.log(`Parsed version: '${versionNumber}', Content preview: '${content.substring(0, 100)}...'`); // LOGGING
             if (versionNumber) {
                 allPatchNotes[versionNumber] = content;
             }
         }
+        console.log("Finished parsing. allPatchNotes:", JSON.stringify(allPatchNotes)); // LOGGING
 
         // Fallback if the above regex yields no versions, but the file has content
         // This might happen if the main title "# Notas del Parche" is the only H1/H2 level heading
