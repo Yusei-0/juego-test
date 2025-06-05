@@ -1,5 +1,5 @@
 import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc, updateDoc } from './firebase.js';
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
+import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE, INITIAL_MAGIC_POINTS } from './constants.js';
 import { playSound } from './sound.js';
 import {
     showNotification, addLogEntry, clearHighlightsAndSelection, renderHighlightsAndInfo,
@@ -261,6 +261,17 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
     gameState.currentFirebaseGameData = firebaseGameData;
     gameState.gameActive = firebaseGameData.status === 'active';
 
+    if (firebaseGameData.player1MagicPoints !== undefined) {
+        gameState.player1MagicPoints = firebaseGameData.player1MagicPoints;
+    } else {
+        gameState.player1MagicPoints = 0; // Default if somehow missing
+    }
+    if (firebaseGameData.player2MagicPoints !== undefined) {
+        gameState.player2MagicPoints = firebaseGameData.player2MagicPoints;
+    } else {
+        gameState.player2MagicPoints = 0; // Default if somehow missing
+    }
+
     const newClientUnits = {};
     const newBoardModel = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
 
@@ -417,7 +428,9 @@ export async function hostNewOnlineGame(gameState) {
         currentPlayerId: gameState.localPlayerId, units: initialUnits, status: 'waiting',
         createdAt: serverTimestamp(), lastMoveAt: serverTimestamp(),
         gameLog: [{text: `Partida ${gameId} creada por Jugador 1 (${gameState.localPlayerId.substring(0,5)}...).`, type: 'system', timestamp: new Date().toISOString()}],
-        winnerReason: ""
+        winnerReason: "",
+        player1MagicPoints: INITIAL_MAGIC_POINTS,
+        player2MagicPoints: INITIAL_MAGIC_POINTS,
     };
     try {
         const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameId}`);
@@ -478,5 +491,85 @@ export async function joinExistingOnlineGame(gameState, gameIdToJoin) {
         console.error("Error uniéndose a partida:",e);
         showNotification("Error al Unirse",`No se pudo unir: ${e.message}`);
         gameState.currentGameId = null; // Reset gameId if join failed
+    }
+}
+
+export async function performSummonOnline(gameState, unitTypeToSummon, row, col) {
+    if (!gameState.currentGameId || !firestoreDB || !gameState.localPlayerId) {
+        showNotification("Error", "No se puede invocar: Partida no válida o no conectado.");
+        return;
+    }
+    if (!UNIT_TYPES[unitTypeToSummon]) {
+        showNotification("Error de Invocación", `Tipo de unidad inválido: ${unitTypeToSummon}.`);
+        return;
+    }
+
+    gameState.isAnimating = true; // Prevent other actions during transaction
+    const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+    const unitDetails = UNIT_TYPES[unitTypeToSummon];
+    const summonCost = unitDetails.summonCost;
+
+    // ID Generation as per self-correction
+    const uniqueIdPart = Date.now().toString();
+    const newUnitData = createUnitData(unitTypeToSummon, gameState.localPlayerNumber, uniqueIdPart);
+    const newUnitId = newUnitData.id; // This ID is like "p1-guerrero-timestamp"
+
+    newUnitData.row = row;
+    newUnitData.col = col;
+    if (unitDetails.drawFunc) { // Ensure drawFuncKey is part of the data stored
+        newUnitData.drawFuncKey = unitDetails.drawFunc;
+    }
+
+    const logEntry = {
+        text: `Jugador ${gameState.localPlayerNumber} invocó ${unitDetails.name} en (${row},${col}).`,
+        type: 'summon',
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        await runTransaction(firestoreDB, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "La partida no existe.";
+
+            const gd = gameDoc.data();
+
+            // Determine current player's magic points field
+            const magicPointsField = gameState.localPlayerNumber === 1 ? 'player1MagicPoints' : 'player2MagicPoints';
+            const currentPlayerMagicPoints = gd[magicPointsField];
+
+            if (currentPlayerMagicPoints < summonCost) {
+                throw `Puntos mágicos insuficientes. Necesitas ${summonCost}, tienes ${currentPlayerMagicPoints}.`;
+            }
+
+            const updatedUnits = { ...gd.units, [newUnitId]: newUnitData };
+            const updatedMagicPoints = currentPlayerMagicPoints - summonCost;
+            const updatedGameLog = [logEntry, ...gd.gameLog.slice(0, 49)]; // Keep log to 50 entries
+
+            const updateData = {
+                units: updatedUnits,
+                gameLog: updatedGameLog,
+                lastMoveAt: serverTimestamp()
+            };
+            updateData[magicPointsField] = updatedMagicPoints;
+
+            if (gd.currentPlayerId !== gameState.localPlayerId) {
+                throw "No es tu turno para invocar.";
+            }
+
+            const nextPlayerId = gd.player1Id === gameState.localPlayerId ? gd.player2Id : gd.player1Id;
+            updateData.currentPlayerId = nextPlayerId;
+
+            transaction.update(gameRef, updateData);
+        });
+
+        playSound('summon', 'A4'); // Assuming you have a 'summon' sound
+        // UI updates handled by Firestore listener
+
+    } catch (e) {
+        console.error("Error en la invocación online:", e);
+        showNotification("Error de Invocación", `${e}`);
+    } finally {
+        gameState.isAnimating = false;
+        // isSummoning state should be handled by the calling context (e.g., onTileClick)
     }
 }

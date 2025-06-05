@@ -1,39 +1,42 @@
 // gameState will be passed as an argument to functions needing it.
 import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
 import { getTileType } from './boardUtils.js'; // Updated import
-import { performMoveOnline, performAttackOnline } from './onlineGame.js';
+import { performMoveOnline, performAttackOnline, performSummonOnline } from './onlineGame.js';
 import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, performHealLocal, summonUnitLocal } from './localGame.js'; // Added summonUnitLocal
 // Import hideSummonUnitModal and showNotification from ui.js
 import { renderHighlightsAndInfo, hideSummonUnitModal, showNotification } from './ui.js';
 
-export function onTileClick(gameState, row, col) {
+export async function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
 
     // Summoning Action Check
     if (gameState.isSummoning) {
         const highlightedSummonSpot = gameState.highlightedMoves.find(m => m.row === row && m.col === col && m.type === 'summon_spawn_point');
         if (highlightedSummonSpot) {
-            summonUnitLocal(gameState, gameState.unitToSummonType, row, col);
+            if (gameState.gameMode === 'online') {
+                // Use await because performSummonOnline is async
+                await performSummonOnline(gameState, gameState.unitToSummonType, row, col);
+                // performSummonOnline handles its own notifications for success/failure.
+                // The Firestore listener will eventually update the board.
+            } else {
+                summonUnitLocal(gameState, gameState.unitToSummonType, row, col);
+                // summonUnitLocal might have its own sound, logging, etc.
+            }
 
-            // Deduct magic points (example, actual deduction should be in summonUnitLocal)
-            // const unitToSummonDetails = UNIT_TYPES[gameState.unitToSummonType];
-            // if (gameState.currentPlayer === 1) {
-            //     gameState.player1MagicPoints -= unitToSummonDetails.summonCost;
-            // } else {
-            //     gameState.player2MagicPoints -= unitToSummonDetails.summonCost;
-            // }
-
+            // Common state cleanup after attempting a summon, regardless of mode or success.
+            // Success of summon (unit appearing, MP deduction) is handled by specific functions
+            // and Firestore updates for online.
             gameState.isSummoning = false;
             gameState.unitToSummonType = null;
             clearHighlightsAndSelection(gameState); // Clear summon highlights
-            renderHighlightsAndInfo(gameState); // Re-render board
-            // The actual unit placement and game state update will be in summonUnitLocal
-            return; // End turn or further action for summoning.
+            renderHighlightsAndInfo(gameState);     // Re-render board
+            // Note: For online mode, renderHighlightsAndInfo will show the state before Firestore confirmation.
+            // The actual unit will appear once Firestore listener updates the board.
+            // This is generally acceptable as performSummonOnline also sets isAnimating.
+            return;
         } else {
             // Clicked on a non-highlighted tile during summoning mode
             console.log("GAME_ACTIONS: Invalid summon location. Click on a highlighted tile.");
-            // Optionally, provide visual feedback like a screen shake or error sound.
-            // For now, we just cancel summoning mode to prevent being stuck.
             gameState.isSummoning = false;
             gameState.unitToSummonType = null;
             clearHighlightsAndSelection(gameState);
@@ -127,11 +130,48 @@ export function initiateSummonAction(gameState, unitTypeToSummon) {
     }
 
     const unitDetails = UNIT_TYPES[unitTypeToSummon];
-    const currentPlayerMagic = gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints;
+    let currentPlayerMagic;
+
+    if (gameState.gameMode === 'online') {
+        if (!gameState.currentFirebaseGameData) {
+            console.error("GAME_ACTIONS: currentFirebaseGameData is not available for online summon cost check.");
+            showNotification("Error", "No se pudieron verificar los puntos mágicos para el modo online.");
+            hideSummonUnitModal();
+            return;
+        }
+        if (gameState.localPlayerNumber === 1) {
+            currentPlayerMagic = gameState.currentFirebaseGameData.player1MagicPoints;
+        } else if (gameState.localPlayerNumber === 2) {
+            currentPlayerMagic = gameState.currentFirebaseGameData.player2MagicPoints;
+        } else {
+            console.error("GAME_ACTIONS: localPlayerNumber is not set correctly for online summon cost check.");
+            showNotification("Error", "No se pudo identificar al jugador para verificar los puntos mágicos.");
+            hideSummonUnitModal();
+            return;
+        }
+        // Ensure currentPlayerMagic is a number if properties might be missing (though they should exist)
+        if (typeof currentPlayerMagic !== 'number') {
+             console.error(`GAME_ACTIONS: Magic points for player ${gameState.localPlayerNumber} not found or not a number in currentFirebaseGameData.`);
+             showNotification("Error", "Puntos mágicos del jugador no encontrados en los datos del servidor.");
+             hideSummonUnitModal();
+             return;
+        }
+    } else { // For 'local' or 'vsAI' modes
+        // Check if it's AI's turn in 'vsAI' mode, if so, AI handles its own logic, player shouldn't be able to open modal.
+        // This check might be better placed in the UI event handler that calls initiateSummonAction.
+        // However, adding a safeguard here is also fine.
+        if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber) {
+            console.log("GAME_ACTIONS: AI's turn, summon initiation blocked for player.");
+            // showNotification("Aviso", "Es el turno de la IA."); // Already shown by main.js listener
+            hideSummonUnitModal();
+            return;
+        }
+        currentPlayerMagic = gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints;
+    }
 
     if (currentPlayerMagic < unitDetails.summonCost) {
         console.error(`GAME_ACTIONS: Not enough magic points to summon ${unitTypeToSummon}. Required: ${unitDetails.summonCost}, Available: ${currentPlayerMagic}`);
-        showNotification("Puntos Insuficientes", `No tienes suficientes puntos mágicos para invocar ${unitDetails.name}.`);
+        showNotification("Puntos Insuficientes", `No tienes suficientes puntos mágicos para invocar ${unitDetails.name}. Necesitas ${unitDetails.summonCost}, tienes ${currentPlayerMagic}.`);
         hideSummonUnitModal(); // Close modal as summon cannot proceed
         return;
     }

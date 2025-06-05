@@ -28,3 +28,4 @@ export const UNIT_TYPES = {
 
 // Music file paths
 export const MENU_MUSIC_PATH = 'assets/music/menu_music.mp3';
+export const INITIAL_MAGIC_POINTS = 50;
