@@ -258,19 +258,28 @@ export function initializeBoardAndUnitsFirebase(gameState, onTileClickCallback) 
 }
 
 export function updateBoardFromFirestore(gameState, firebaseGameData) {
+    // DEBUG START: Test with Logging
+    console.log('DEBUG: updateBoardFromFirestore - Received firebaseGameData:', JSON.parse(JSON.stringify(firebaseGameData)));
+    // DEBUG END
     gameState.currentFirebaseGameData = firebaseGameData;
     gameState.gameActive = firebaseGameData.status === 'active';
 
-    if (firebaseGameData.player1MagicPoints !== undefined) {
+    if (typeof firebaseGameData.player1MagicPoints === 'number') {
         gameState.player1MagicPoints = firebaseGameData.player1MagicPoints;
     } else {
-        gameState.player1MagicPoints = 0; // Default if somehow missing
+        console.warn(`Warning: player1MagicPoints from Firestore is '${firebaseGameData.player1MagicPoints}' (type: ${typeof firebaseGameData.player1MagicPoints}). Defaulting to 0.`);
+        gameState.player1MagicPoints = 0;
     }
-    if (firebaseGameData.player2MagicPoints !== undefined) {
+
+    if (typeof firebaseGameData.player2MagicPoints === 'number') {
         gameState.player2MagicPoints = firebaseGameData.player2MagicPoints;
     } else {
-        gameState.player2MagicPoints = 0; // Default if somehow missing
+        console.warn(`Warning: player2MagicPoints from Firestore is '${firebaseGameData.player2MagicPoints}' (type: ${typeof firebaseGameData.player2MagicPoints}). Defaulting to 0.`);
+        gameState.player2MagicPoints = 0;
     }
+    // DEBUG START: Test with Logging
+    console.log(`DEBUG: updateBoardFromFirestore - gameState magic points updated. P1_MP: ${gameState.player1MagicPoints}, P2_MP: ${gameState.player2MagicPoints}`);
+    // DEBUG END
 
     const newClientUnits = {};
     const newBoardModel = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
@@ -278,6 +287,11 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
     if (firebaseGameData.units) {
         for (const unitId in firebaseGameData.units) {
             const unitDataFS = firebaseGameData.units[unitId];
+            // DEBUG START: Verify Base Unit Data
+            if (unitDataFS && unitDataFS.type === 'BASE') {
+                console.log(`DEBUG: updateBoardFromFirestore - Processing BASE unit. ID: ${unitId}, Player: ${unitDataFS.player}, Row: ${unitDataFS.row}, Col: ${unitDataFS.col}, Data:`, JSON.parse(JSON.stringify(unitDataFS)));
+            }
+            // DEBUG END
             if (unitDataFS && unitDataFS.row !== undefined && unitDataFS.col !== undefined) {
                 newBoardModel[unitDataFS.row][unitDataFS.col] = unitDataFS;
                 let unitElement = gameState.units[unitId];
@@ -433,6 +447,9 @@ export async function hostNewOnlineGame(gameState) {
         player2MagicPoints: INITIAL_MAGIC_POINTS,
     };
     try {
+        // DEBUG START: Test with Logging
+        console.log('DEBUG: hostNewOnlineGame - gameData to be saved to Firestore:', JSON.parse(JSON.stringify(gameData)));
+        // DEBUG END
         const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameId}`);
         await setDoc(gameRef, gameData);
         addLogEntry(gameState, `Partida ${gameId} creada. Esperando oponente...`, "system");

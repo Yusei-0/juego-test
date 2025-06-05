@@ -42,7 +42,9 @@ let gameState = {
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
-    unsubscribeGameListener: null
+    unsubscribeGameListener: null,
+    player1MagicPoints: 0, // Default initial value
+    player2MagicPoints: 0  // Default initial value
 };
 
 async function handleFirebaseAuthStateChanged(user) {

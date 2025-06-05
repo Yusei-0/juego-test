@@ -239,50 +239,57 @@ export function updateInfoDisplay(gameState) {
     let currentPlayerName = 'Jugador X'; // Default
     let playerRoleText = 'Rol: ---';    // Default
     let currentPlayerNumberString = '1'; // Default
-    let currentMagicPoints = '--';
+    let magicPointsToDisplay = '--'; // Default if not found or not applicable
 
     if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
         const gd = gameState.currentFirebaseGameData;
         const currentTurnPlayerNumber = gd.currentPlayerId === gd.player1Id ? 1 : (gd.currentPlayerId === gd.player2Id ? 2 : 0);
         currentPlayerName = `Jugador ${currentTurnPlayerNumber}`;
         currentPlayerNumberString = currentTurnPlayerNumber.toString();
-        if (gameState.localPlayerRole) {
-            playerRoleText = `Eres: ${gameState.localPlayerRole} (Jugador ${gameState.localPlayerNumber})`;
+
+        if (gameState.localPlayerNumber === 1) {
+            playerRoleText = `Eres: Jugador 1 (Host)`;
+            if (typeof gd.player1MagicPoints === 'number') {
+                magicPointsToDisplay = gd.player1MagicPoints.toString();
+            }
+        } else if (gameState.localPlayerNumber === 2) {
+            playerRoleText = `Eres: Jugador 2`;
+            if (typeof gd.player2MagicPoints === 'number') {
+                magicPointsToDisplay = gd.player2MagicPoints.toString();
+            }
         } else {
+            // Spectator or undefined localPlayerNumber
             playerRoleText = 'Espectador';
         }
+        // Fallback if localPlayerNumber is not set but we have a role (might be redundant if localPlayerNumber is always set when role is)
+        if (!gameState.localPlayerNumber && gameState.localPlayerRole) {
+             playerRoleText = `Eres: ${gameState.localPlayerRole}`;
+        }
+
     } else if (gameState.gameMode === 'local' || gameState.gameMode === 'vsAI') {
         currentPlayerName = `Jugador ${gameState.currentPlayer}`;
         currentPlayerNumberString = gameState.currentPlayer.toString();
         if (gameState.gameMode === 'vsAI') {
-            playerRoleText = `Eres: Jugador 1`;
+            playerRoleText = `Eres: Jugador 1`; // Assuming player is always P1 vs AI
         } else { // Local multiplayer
             playerRoleText = `Turno Jugador ${gameState.currentPlayer}`;
         }
-        // Get magic points for local or vsAI game
-        currentMagicPoints = (gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints);
-        if (typeof currentMagicPoints === 'undefined' || currentMagicPoints === null) {
-            currentMagicPoints = '--'; // Handle undefined or null case
-        }
-    } else if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
-        // Logic for online game magic points (assuming similar structure in Firebase)
-        // This is a placeholder and might need adjustment based on actual Firebase data structure
-        const gd = gameState.currentFirebaseGameData;
-        if (gd.currentPlayerId === gd.player1Id && gd.player1Data) {
-            currentMagicPoints = gd.player1Data.magicPoints !== undefined ? gd.player1Data.magicPoints : '--';
-        } else if (gd.currentPlayerId === gd.player2Id && gd.player2Data) {
-            currentMagicPoints = gd.player2Data.magicPoints !== undefined ? gd.player2Data.magicPoints : '--';
-        } else {
-            currentMagicPoints = '--';
+        // For local/vsAI, magic points are from local gameState, reflecting current player's turn perspective
+        let mpVal = (gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints);
+        if (typeof mpVal === 'number') {
+            magicPointsToDisplay = mpVal.toString();
         }
     }
+    // Defaults for currentPlayerName, playerRoleText, currentPlayerNumberString, magicPointsToDisplay are set at the beginning.
 
-
+    // DEBUG START: Test with Logging
+    console.log(`DEBUG: updateInfoDisplay - Attempting to set magic-points attribute to: '${magicPointsToDisplay}'. Local player num: ${gameState.localPlayerNumber}, Current turn player num string: ${currentPlayerNumberString}`);
+    // DEBUG END
     if (playerTurnDisplayElement) {
         playerTurnDisplayElement.setAttribute('player-name', currentPlayerName);
         playerTurnDisplayElement.setAttribute('player-role', playerRoleText);
         playerTurnDisplayElement.setAttribute('player-number', currentPlayerNumberString);
-        playerTurnDisplayElement.setAttribute('magic-points', currentMagicPoints.toString());
+        playerTurnDisplayElement.setAttribute('magic-points', magicPointsToDisplay);
     }
 
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${gameState.gameMode === 'vsAI' ? `VS IA (${gameState.aiDifficulty})` : (gameState.gameMode === 'online' ? 'Online' : 'Local')}`;

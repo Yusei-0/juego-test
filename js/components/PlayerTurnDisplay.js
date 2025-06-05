@@ -78,10 +78,23 @@ export class PlayerTurnDisplay extends ElementalComponent {
         }
     }
 
-    _updateMagicPoints(points) {
+    _updateMagicPoints(pointsString) {
+        // DEBUG START: Test with Logging
+        console.log(`DEBUG: PlayerTurnDisplay._updateMagicPoints - Received pointsString attribute: '${pointsString}'`);
+        // DEBUG END
         const magicPointsEl = this.$('#magicPoints');
         if (magicPointsEl) {
-            magicPointsEl.textContent = points || '--';
+            const numPoints = parseInt(pointsString, 10);
+            if (!isNaN(numPoints)) {
+                magicPointsEl.textContent = numPoints.toString();
+            } else {
+                magicPointsEl.textContent = '0'; // Default if pointsString is not a valid number (e.g. was '--')
+            }
+            // DEBUG START: Test with Logging
+            if (magicPointsEl) { // Re-check for safety, though it should be true if we got this far
+                console.log(`DEBUG: PlayerTurnDisplay._updateMagicPoints - Final textContent for #magicPoints element: '${magicPointsEl.textContent}'`);
+            }
+            // DEBUG END
         }
     }
 
