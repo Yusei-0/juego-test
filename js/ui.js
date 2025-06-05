@@ -50,6 +50,7 @@ export const notificationModal = document.getElementById('notificationModal');
 export const notificationTitle = document.getElementById('notificationTitle');
 export const notificationMessageText = document.getElementById('notificationMessageText');
 export const notificationOkBtn = document.getElementById('notificationOkBtn');
+export const surrenderGameBtn = document.getElementById('surrenderGameBtn');
 
 // Moved from localGame.js
 export function createUnitElement(gameState, unitData) {
@@ -284,18 +285,32 @@ export function updateSelectedUnitInfoPanel(gameState) {
     }
 }
 
-export function showEndGameModal(gameState, winner, reason) { // Added gameState for consistency, though not used directly
+export function showEndGameModal(winner, reason) { // gameState parameter removed as it's not used
     if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
-    if (winner) {
-        if(gameOverMessage) gameOverMessage.innerHTML = `¡Jugador ${winner} Gana!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
-        if(gameOverMessage) gameOverMessage.className='';
-        if(gameOverMessage) gameOverMessage.classList.add(winner===1?'winner-player1':'winner-player2');
-    } else {
-        if(gameOverMessage) gameOverMessage.innerHTML = `¡Empate!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
-        if(gameOverMessage) gameOverMessage.className='';
+
+    let winnerText = "¡Empate!"; // Default text for draw or if winner is null/undefined
+    let winnerClassBase = ''; // No specific class for draw by default
+
+    if (winner && (winner === 1 || winner === 2)) {
+        winnerText = `¡Jugador ${winner} Gana!`;
+        winnerClassBase = winner === 1 ? 'winner-player1' : 'winner-player2';
+    } else if (winner) { // Catch cases where winner might be truthy but not 1 or 2
+        console.warn(`showEndGameModal called with unexpected winner value: ${winner}`);
+        // Fallback to a generic message or keep "Empate"
     }
+    // If reason is not provided, ensure it's an empty string or a default.
+    const displayReason = reason || "Partida Terminada";
+
+    if(gameOverMessage) {
+        gameOverMessage.innerHTML = `${winnerText}<br><span style="font-size:0.8em;color:#a0aec0;">(${displayReason})</span>`;
+        gameOverMessage.className = ''; // Clear existing classes
+        if (winnerClassBase) {
+            gameOverMessage.classList.add(winnerClassBase);
+        }
+    }
+
     if(gameOverModal) gameOverModal.style.display='flex';
-    playSound('death','C4');
+    playSound('death','C4'); // Consider varying sound based on win/loss/draw if desired
 }
 
 export function clearHighlightsAndSelection(gameState) {

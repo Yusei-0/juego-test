@@ -69,6 +69,73 @@ export async function performAttackOnline(gameState, attackerData, targetData) {
     finally{gameState.isAnimating=false; clearHighlightsAndSelection(gameState); renderHighlightsAndInfo(gameState);}
 }
 
+export async function handleSurrenderOnline(gameState) {
+    if (!gameState.gameActive || !gameState.currentGameId || !firestoreDB || !gameState.localPlayerId) {
+        console.warn("Surrender attempted in invalid state:", {
+            gameActive: gameState.gameActive,
+            currentGameId: gameState.currentGameId,
+            firestoreDB_exists: !!firestoreDB,
+            localPlayerId_exists: !!gameState.localPlayerId
+        });
+        showNotification("Error de Rendición", "No se puede rendir en este momento.");
+        return;
+    }
+
+    let winnerStatus;
+    let surrenderingPlayerNumber;
+
+    if (gameState.localPlayerId === gameState.currentFirebaseGameData?.player1Id) {
+        winnerStatus = 'player2_wins';
+        surrenderingPlayerNumber = 1;
+    } else if (gameState.localPlayerId === gameState.currentFirebaseGameData?.player2Id) {
+        winnerStatus = 'player1_wins';
+        surrenderingPlayerNumber = 2;
+    } else {
+        console.error("Error: Local player is not P1 or P2, cannot determine surrender outcome.");
+        showNotification("Error de Rendición", "No se pudo identificar tu rol en la partida.");
+        return;
+    }
+
+    const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+    const surrenderLogEntry = {
+        text: `Jugador ${surrenderingPlayerNumber} (${gameState.localPlayerId.substring(0,5)}...) se ha rendido.`,
+        type: 'system', // Or 'surrender' if you want a specific type
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        // Add local log entry immediately for responsiveness
+        addLogEntry(gameState, surrenderLogEntry.text, surrenderLogEntry.type);
+
+        await runTransaction(firestoreDB, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "Game DNE!";
+
+            const gd = gameDoc.data();
+            // Prepend to existing log, ensuring not to exceed limits (though server-side might also do this)
+            const updatedGameLog = [surrenderLogEntry, ...gd.gameLog.slice(0, 49)];
+
+            transaction.update(gameRef, {
+                status: winnerStatus,
+                winnerReason: "Rendición",
+                currentPlayerId: null, // Game is over
+                lastMoveAt: serverTimestamp(),
+                gameLog: updatedGameLog
+            });
+        });
+        // No need to call showEndGameModal here, onSnapshot listener will handle it.
+        // playSound for surrender can be added if desired, e.g., playSound('defeat');
+        playSound('death', 'C3'); // Or a specific surrender sound
+
+    } catch (error) {
+        console.error("Error during online surrender:", error);
+        showNotification("Error de Rendición", `No se pudo procesar la rendición: ${error.message || error}`);
+        // Potentially revert local log entry if it's critical, but usually not necessary
+    }
+    // No need to switch turns or clear selection, as the game will end.
+    // The onSnapshot listener will receive the game state update and trigger UI changes (like gameOverModal).
+}
+
 export function canPlayerMakeAnyMoveOnline(gameState, playerId, gameData) { // Added gameState
     const playerNumber = gameData.player1Id === playerId ? 1 : (gameData.player2Id === playerId ? 2 : 0);
     if (!playerNumber) return false;
@@ -254,9 +321,9 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
         let winner = null; let reason = firebaseGameData.winnerReason || "Partida Terminada";
         if (firebaseGameData.status === 'player1_wins') winner = 1;
         if (firebaseGameData.status === 'player2_wins') winner = 2;
-        if (firebaseGameData.status === 'draw') reason = "Empate";
+        if (firebaseGameData.status === 'draw') reason = "Empate"; // If status is 'draw', winner remains null.
 
-        showEndGameModal(gameState, winner, reason); // Pass gameState
+        showEndGameModal(winner, reason);
     }
 }
 
@@ -266,18 +333,86 @@ export function arraysEqual(a, b) {
     return true;
 }
 
-export function leaveGameCleanup(gameState) {
+export async function leaveGameCleanup(gameState) { // Added async
+    // --- Start: Handle active game leave as a loss ---
+    if (gameState.gameMode === 'online' &&
+        gameState.gameActive &&
+        gameState.currentFirebaseGameData &&
+        gameState.localPlayerId &&
+        firestoreDB &&
+        gameState.currentGameId &&
+        (gameState.localPlayerId === gameState.currentFirebaseGameData.player1Id || gameState.localPlayerId === gameState.currentFirebaseGameData.player2Id) &&
+        gameState.currentFirebaseGameData.status === 'active' // Ensure game is actually active, not already won/drawn
+    ) {
+        let winnerStatus = '';
+        let leavingPlayerNumber = 0;
+
+        if (gameState.localPlayerId === gameState.currentFirebaseGameData.player1Id) {
+            winnerStatus = 'player2_wins'; // Player 1 is leaving, Player 2 wins
+            leavingPlayerNumber = 1;
+        } else if (gameState.localPlayerId === gameState.currentFirebaseGameData.player2Id) {
+            winnerStatus = 'player1_wins'; // Player 2 is leaving, Player 1 wins
+            leavingPlayerNumber = 2;
+        }
+
+        if (winnerStatus && leavingPlayerNumber !== 0) {
+            const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+            const logEntry = {
+                text: `Jugador ${leavingPlayerNumber} (${gameState.localPlayerId.substring(0,5)}...) se ha desconectado. El oponente gana.`,
+                type: 'system',
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                // Update Firestore to reflect the game outcome
+                // This should ideally complete before local cleanup proceeds too far
+                await updateDoc(gameRef, {
+                    status: winnerStatus,
+                    winnerReason: "Oponente Desconectado",
+                    currentPlayerId: null, // Game is over
+                    lastMoveAt: serverTimestamp(),
+                    // Consider how gameLog is updated. arrayUnion might lead to duplicates if this event is triggered multiple times.
+                    // A transaction or a more careful update of gameLog might be better if multiple triggers are a concern.
+                    // For now, using arrayUnion as specified, but noting this.
+                    // A better approach might be to fetch the log, add entry, then set, similar to surrender.
+                    // However, for a disconnect, one update is likely.
+                    gameLog: arrayUnion(logEntry)
+                });
+                addLogEntry(gameState, logEntry.text, logEntry.type); // Add to local log as well
+                console.log(`Online game ${gameState.currentGameId} updated: ${winnerStatus} due to disconnect.`);
+            } catch (error) {
+                console.error("Error updating game to reflect disconnect:", error);
+                // Proceed with local cleanup even if Firestore update fails, to allow user to exit.
+            }
+        }
+    }
+    // --- End: Handle active game leave as a loss ---
+
     if (gameState.unsubscribeGameListener) {
         gameState.unsubscribeGameListener();
         gameState.unsubscribeGameListener = null;
     }
 
-    if (gameState.gameMode === 'online' && gameState.localPlayerRole === 'player1' &&
-        gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.status === 'waiting' &&
-        firestoreDB && gameState.currentGameId) {
-        deleteDoc(doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`))
-            .then(() => addLogEntry(gameState, `Partida ${gameState.currentGameId} eliminada por anfitrión.`, "system"))
-            .catch(e => console.error("Error borrando partida al salir:", e));
+    // Original logic for host deleting a WAITING game
+    if (gameState.gameMode === 'online' &&
+        gameState.localPlayerRole === 'player1' && // Only player1 (host)
+        gameState.currentFirebaseGameData &&
+        gameState.currentFirebaseGameData.status === 'waiting' && // Only for waiting games
+        firestoreDB &&
+        gameState.currentGameId
+    ) {
+        // This part is specifically for the host of a "waiting" game.
+        // The active game leave logic above handles "active" games.
+        try {
+            await deleteDoc(doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`));
+            addLogEntry(gameState, `Partida ${gameState.currentGameId} eliminada por anfitrión.`, "system");
+            console.log(`Online game ${gameState.currentGameId} (waiting) deleted by host.`);
+        } catch (e) {
+            console.error("Error borrando partida en espera al salir:", e);
+        }
+            // .then(() => addLogEntry(gameState, `Partida ${gameState.currentGameId} eliminada por anfitrión.`, "system"))
+            // .catch(e => console.error("Error borrando partida al salir:", e));
+            // Switched to async/await for deleteDoc above.
     }
 
     gameState.currentGameId = null;

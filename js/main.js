@@ -8,13 +8,20 @@ import {
     playerUserIdDisplay_Lobby, createGameBtn_Lobby, joinGameIdInput_Lobby,
     joinGameBtn_Lobby, backToMainMenuBtn_Lobby, leaveWaitingRoomBtn,
     generalLeaveGameBtn, modalLeaveGameBtn, notificationModal, notificationOkBtn,
+    surrenderGameBtn, // Added for surrender button
     showScreen, addLogEntry, gameModeInfoDisplay, showNotification,
-    renderHighlightsAndInfo, renderUnitRosterLocal,
-    displayTutorial, // New
-    backToMainMenuBtn_Tutorial // New
+    renderHighlightsAndInfo, renderUnitRosterLocal, gameOverModal as gameOverModalElement, // Renamed to avoid conflict if any, and ensure it's the element
+    displayTutorial,
+    backToMainMenuBtn_Tutorial
 } from './ui.js';
-import { initializeLocalBoardAndUnits } from './localGame.js';
-import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame } from './onlineGame.js';
+import { initializeLocalBoardAndUnits, handleSurrenderLocal } from './localGame.js'; // Added handleSurrenderLocal
+import {
+    joinGameSessionOnline,
+    leaveGameCleanup,
+    hostNewOnlineGame,
+    joinExistingOnlineGame,
+    handleSurrenderOnline // Added handleSurrenderOnline
+} from './onlineGame.js';
 import { onTileClick } from './gameActions.js';
 import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
@@ -34,8 +41,15 @@ let gameState = {
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
-    unsubscribeGameListener: null
+    unsubscribeGameListener: null,
+    // currentPlayer is initialized in initializeLocalBoardAndUnits or managed via currentFirebaseGameData.currentPlayerId for online.
 };
+
+// Handler for onTileClick, to be passed to initialization functions
+function onTileClickHandler(r, c) {
+    if (gameState.isAnimating) return; // Prevent actions during animations
+    onTileClick(gameState, r, c); // Delegates to the function from gameActions.js
+}
 
 async function handleFirebaseAuthStateChanged(user) {
     if (user) {
@@ -134,8 +148,7 @@ function startGame(mode, difficulty = null) {
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${mode === 'vsAI' ? `VS IA (${difficulty})` : (mode === 'online' ? 'Online' : 'Local')}`;
 
     if (mode === 'local' || mode === 'vsAI') {
-        // Pass gameState and the onTileClick function (bound with gameState)
-        initializeLocalBoardAndUnits(gameState, (r,c) => onTileClick(gameState, r, c));
+        initializeLocalBoardAndUnits(gameState, onTileClickHandler); // Use the defined handler
         renderHighlightsAndInfo(gameState);
         renderUnitRosterLocal(gameState);
     } else if (mode === 'online') {
@@ -155,9 +168,53 @@ if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () =
 if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => showScreen(mainMenuScreen.id)); // Pass ID
 if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => showScreen(mainMenuScreen.id));
 
-if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
-if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
-if(modalLeaveGameBtn) modalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));
+if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', async () => {
+    await leaveGameCleanup(gameState);
+    // leaveGameCleanup now calls showScreen('mainMenuScreen') itself.
+});
+
+if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', async () => {
+    await leaveGameCleanup(gameState);
+    // leaveGameCleanup now calls showScreen('mainMenuScreen') itself.
+});
+
+if(modalLeaveGameBtn) modalLeaveGameBtn.addEventListener('click', async () => {
+    if(gameOverModalElement) gameOverModalElement.style.display = 'none'; // Explicitly hide modal first
+    await leaveGameCleanup(gameState);
+    // leaveGameCleanup now calls showScreen('mainMenuScreen') itself.
+});
+
+// Surrender Button Event Listener
+if(surrenderGameBtn) {
+    surrenderGameBtn.addEventListener('click', async () => {
+        console.log("Surrender button clicked. Game active:", gameState.gameActive, "Mode:", gameState.gameMode);
+        if (!gameState.gameActive) {
+            showNotification("Juego Terminado", "No puedes rendirte si el juego ya ha terminado.");
+            return;
+        }
+
+        // Ask for confirmation before surrendering
+        const wantsToSurrender = confirm("¿Estás seguro de que quieres rendirte?");
+        if (!wantsToSurrender) {
+            return;
+        }
+
+        addLogEntry(gameState, "Botón de rendición presionado.", "event");
+
+        if (gameState.gameMode === 'local' || gameState.gameMode === 'vsAI') {
+            handleSurrenderLocal(gameState);
+        } else if (gameState.gameMode === 'online') {
+            // For online, currentFirebaseGameData might be needed by handleSurrenderOnline
+            // Ensure it's reasonably fresh or that handleSurrenderOnline fetches what it needs.
+            // handleSurrenderOnline itself checks currentFirebaseGameData.
+            await handleSurrenderOnline(gameState);
+        } else {
+            console.warn("Surrender attempted in unknown game mode:", gameState.gameMode);
+            showNotification("Error", "No se puede rendir en este modo de juego desconocido.");
+        }
+    });
+}
+
 
 if(notificationOkBtn) notificationOkBtn.addEventListener('click', () => {
     if(notificationModal) notificationModal.style.display = "none";

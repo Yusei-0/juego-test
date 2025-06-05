@@ -176,6 +176,14 @@ export function endGameLocal(gameState, winner, reason = "Condición de Victoria
     renderHighlightsAndInfo(gameState);
 }
 
+export function handleSurrenderLocal(gameState) {
+    if (!gameState.gameActive) return; // Can't surrender if game is already over
+
+    const winner = gameState.currentPlayer === 1 ? 2 : 1;
+    addLogEntry(gameState, `Jugador ${gameState.currentPlayer} se ha rendido.`, "system");
+    endGameLocal(gameState, winner, "Rendición");
+}
+
 export function canPlayerMakeAnyMoveLocal(gameState) {
     const playerNumber = gameState.currentPlayer; // In local/AI, current player is the one to check
     for (const unitId in gameState.units) {
