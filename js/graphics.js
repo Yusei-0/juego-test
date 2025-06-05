@@ -96,6 +96,102 @@ const unitDrawFunctions = {
         drawPixel(ctx, 14,2,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 15,2,clubStone,pSize, artOffsetX, artOffsetY);
         drawPixel(ctx, 13,3,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14,3,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 15,3,clubStone,pSize, artOffsetX, artOffsetY);
         drawPixel(ctx, 12,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 13,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14,4,clubStone,pSize, artOffsetX, artOffsetY);
+    },
+    // --- Dibuja la unidad Sandor ---
+    drawSandor: (ctx, canvasSize, isPlayer1) => {
+        const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
+        const artActualWidth = PIXEL_GRID_SIZE * pSize;
+        const artActualHeight = PIXEL_GRID_SIZE * pSize;
+        const artOffsetX = (canvasSize - artActualWidth) / 2;
+        const artOffsetY = (canvasSize - artActualHeight) / 2;
+        const skin = '#FFDBAC';
+        const hair = isPlayer1 ? '#4A2A00' : '#333333'; // Darker Brown for P1, Dark Grey for P2
+        const armorMain = isPlayer1 ? '#D4AF37' : '#708090'; // Gold for P1, Slate Gray for P2
+        const armorAccent = isPlayer1 ? '#B8860B' : '#536878'; // Dark Gold for P1, Dark Slate Gray for P2
+        const swordBlade = '#C0C0C0'; // Silver
+        const swordGuard = '#808080'; // Gray
+        const swordHilt = '#5D4037'; // Brown
+
+        ctx.clearRect(0,0, canvasSize, canvasSize);
+
+        // Head (similar to Guerrero but different hair)
+        for(let y=2; y<6; y++) for(let x=6; x<10; x++) drawPixel(ctx, x, y, skin, pSize, artOffsetX, artOffsetY);
+        for(let x=5; x<11; x++) drawPixel(ctx, x,1,hair,pSize, artOffsetX, artOffsetY); // Wider hair
+        drawPixel(ctx, 5,2,hair,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 10,2,hair,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 6,0,hair,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 7,0,hair,pSize, artOffsetX, artOffsetY); // Spiky hair top
+        drawPixel(ctx, 8,0,hair,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,0,hair,pSize, artOffsetX, artOffsetY);
+
+
+        // Body Armor (more ornate)
+        for(let y=6; y<12; y++) for(let x=4; x<12; x++) drawPixel(ctx, x, y, armorMain, pSize, artOffsetX, artOffsetY); // Wider torso
+        drawPixel(ctx, 6,6,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,6,armorAccent,pSize, artOffsetX, artOffsetY); // Pauldrons
+        drawPixel(ctx, 4,7,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 11,7,armorAccent,pSize, artOffsetX, artOffsetY);
+        for(let i=0; i<3; i++) drawPixel(ctx, 7, 7+i, armorAccent, pSize, artOffsetX, artOffsetY); // Vertical stripe
+
+        // Legs (armored)
+        for(let y=12; y<15; y++) {
+            drawPixel(ctx, 4,y,armorMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 5,y,armorMain,pSize, artOffsetX, artOffsetY);
+            drawPixel(ctx, 10,y,armorMain,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 11,y,armorMain,pSize, artOffsetX, artOffsetY);
+        }
+        drawPixel(ctx, 4,15,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 5,15,armorAccent,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 10,15,armorAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 11,15,armorAccent,pSize, artOffsetX, artOffsetY);
+
+        // Sword (larger or different style)
+        drawPixel(ctx, 13, 10, swordHilt, pSize, artOffsetX, artOffsetY); // Hand on hilt
+        drawPixel(ctx, 13, 9, swordHilt, pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 12, 8, swordGuard, pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14, 8, swordGuard, pSize, artOffsetX, artOffsetY); // Wider guard
+        for(let i=0; i<8; i++) drawPixel(ctx, 13, 7-i, swordBlade, pSize, artOffsetX, artOffsetY); // Longer blade
+        drawPixel(ctx, 13, 0, '#FFFFFF', pSize, artOffsetX, artOffsetY); // Glint
+
+        // Shield (optional, or a different arm position)
+        // For Sandor, let's make his sword two-handed looking, so less shield or smaller buckler
+        drawPixel(ctx, 2, 7, skin, pSize, artOffsetX, artOffsetY); // Left hand
+        drawPixel(ctx, 2, 8, skin, pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 1, 8, armorAccent, pSize, artOffsetX, artOffsetY); // Small buckler/gauntlet detail
+        drawPixel(ctx, 2, 9, armorAccent, pSize, artOffsetX, artOffsetY);
+    },
+
+    // --- Dibuja la unidad Unidad Voladora ---
+    drawUnidadVoladora: (ctx, canvasSize, isPlayer1) => {
+        const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
+        const artActualWidth = PIXEL_GRID_SIZE * pSize;
+        const artActualHeight = PIXEL_GRID_SIZE * pSize;
+        const artOffsetX = (canvasSize - artActualWidth) / 2;
+        const artOffsetY = (canvasSize - artActualHeight) / 2;
+
+        const bodyMain = isPlayer1 ? '#A0D2DB' : '#E0BBE4'; // Light Blue for P1, Light Purple for P2
+        const bodyAccent = isPlayer1 ? '#78C1D0' : '#D0A9CE'; // Darker Blue for P1, Darker Purple for P2
+        const wingColor = isPlayer1 ? '#FFFFFF' : '#F0F0F0'; // White/Light Grey wings
+        const eyeColor = '#FF0000'; // Red eye
+
+        ctx.clearRect(0,0, canvasSize, canvasSize);
+
+        // Body (central oval shape)
+        for(let y=5; y<11; y++) for(let x=6; x<10; x++) drawPixel(ctx, x,y,bodyMain,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 7,5,bodyAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 8,5,bodyAccent,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 6,6,bodyAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,6,bodyAccent,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 6,10,bodyAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 9,10,bodyAccent,pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 7,11,bodyAccent,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 8,11,bodyAccent,pSize, artOffsetX, artOffsetY);
+
+        // Eye
+        drawPixel(ctx, 8, 7, eyeColor, pSize, artOffsetX, artOffsetY);
+
+        // Wings (spread outwards)
+        // Left Wing
+        for(let i=0; i<5; i++) drawPixel(ctx, 5-i, 3+i, wingColor, pSize, artOffsetX, artOffsetY);
+        for(let i=0; i<4; i++) drawPixel(ctx, 4-i, 4+i, wingColor, pSize, artOffsetX, artOffsetY);
+        for(let i=0; i<5; i++) drawPixel(ctx, 5-i, 4+i, wingColor, pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 1, 8, bodyAccent, pSize, artOffsetX, artOffsetY); // Wing joint shadow
+
+        // Right Wing
+        for(let i=0; i<5; i++) drawPixel(ctx, 10+i, 3+i, wingColor, pSize, artOffsetX, artOffsetY);
+        for(let i=0; i<4; i++) drawPixel(ctx, 11+i, 4+i, wingColor, pSize, artOffsetX, artOffsetY);
+        for(let i=0; i<5; i++) drawPixel(ctx, 10+i, 4+i, wingColor, pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 14, 8, bodyAccent, pSize, artOffsetX, artOffsetY); // Wing joint shadow
+
+        // Simple "feet" or landing gear (optional, as it's flying)
+        drawPixel(ctx, 7, 12, bodyAccent, pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 8, 12, bodyAccent, pSize, artOffsetX, artOffsetY);
     }
 };
 

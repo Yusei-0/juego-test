@@ -15,5 +15,9 @@ export const UNIT_TYPES = {
     BASE: { name: 'Base', hp: 25, attack: 0, movement: 0, range: 0, class: 'base', isMobile: false, drawFunc: 'drawBase' },
     GUERRERO: { name: 'Guerrero', hp: 20, attack: 8, movement: 2, range: 1, class: 'guerrero', isMobile: true, drawFunc: 'drawGuerrero' },
     ARQUERO: { name: 'Arquero', hp: 15, attack: 6, movement: 2, range: 3, class: 'arquero', isMobile: true, drawFunc: 'drawArquero' },
-    GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante' }
+    GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante' },
+    // Unidad Guerrero Especial: Sandor
+    SANDOR: { name: 'Sandor', hp: 25, attack: 10, movement: 2, range: 1, class: 'guerrero_especial', isMobile: true, drawFunc: 'drawSandor' },
+    // Unidad Aérea: Unidad Voladora
+    UNIDAD_VOLADORA: { name: 'Unidad Voladora', hp: 18, attack: 7, movement: 4, range: 1, class: 'voladora', isMobile: true, drawFunc: 'drawUnidadVoladora' }
 };

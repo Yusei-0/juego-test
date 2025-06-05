@@ -84,8 +84,19 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
                 for(const [dr,dc] of n){
                     const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;
                     if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){
-                        const tt=getTileType(nr,nc);
-                        if(tt!=='river'&& (!gameState.board[nr] || !gameState.board[nr][nc])){ // Check board bounds and if tile is empty
+                        const tileIsEmpty = (!gameState.board[nr] || !gameState.board[nr][nc]);
+                        let canMoveToTile = false;
+
+                        // Comprueba si la unidad es voladora para aplicar reglas de movimiento especiales
+                        if (unitData.type === 'UNIDAD_VOLADORA') {
+                            canMoveToTile = tileIsEmpty; // Flying unit can only be blocked by another unit at the destination
+                        } else {
+                            // Reglas de movimiento estándar para unidades terrestres
+                            const tt = getTileType(nr, nc); // Get tile type only if not a flyer
+                            canMoveToTile = tt !== 'river' && tileIsEmpty; // Standard ground unit movement rules
+                        }
+
+                        if (canMoveToTile) {
                             const a={unitId:unitData.id,fromR:startR,fromC:startC,row:nr,col:nc,type:'move'};
                             possibleActions.push(a);
                             if(updateGlobalHighlights)gameState.highlightedMoves.push(a);

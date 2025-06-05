@@ -45,13 +45,17 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     };
 
     placeUnit(createUnitData('BASE', 1, 0), BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2)); // From boardUtils.js
-    placeUnit(createUnitData('GUERRERO', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
+    // Coloca a Sandor para el Jugador 1
+    placeUnit(createUnitData('SANDOR', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
+    // Coloca una Unidad Voladora para el Jugador 1
+    placeUnit(createUnitData('UNIDAD_VOLADORA', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
     placeUnit(createUnitData('GIGANTE', 1, 3), BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2));
 
     placeUnit(createUnitData('BASE', 2, 0), 0, Math.floor(BOARD_COLS / 2));
-    placeUnit(createUnitData('GUERRERO', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
+    // Coloca a Sandor para el Jugador 2
+    placeUnit(createUnitData('SANDOR', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
+    // Coloca una Unidad Voladora para el Jugador 2
+    placeUnit(createUnitData('UNIDAD_VOLADORA', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
     placeUnit(createUnitData('GIGANTE', 2, 3), 2, Math.floor(BOARD_COLS / 2));
 
     gameState.currentPlayer = 1;
