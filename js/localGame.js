@@ -291,14 +291,7 @@ function handleSurrenderLocal(gameState) {
     endGameLocal(gameState, winningPlayer, "Rendición");
 }
 
-export function updateUnitHPDisplay(gameState, unitData) {
-    if (unitData && gameState.selectedUnit && gameState.selectedUnit.data && gameState.selectedUnit.data.id === unitData.id) {
-        const unitHealthText = document.getElementById('unitHealth');
-        if (unitHealthText) {
-            unitHealthText.textContent = `${Math.max(0, unitData.hp)}/${unitData.maxHp}`;
-        }
-    }
-}
+// Removed local definition of updateUnitHPDisplay as it's imported from ui.js
 
 export function summonUnitLocal(gameState, unitType, row, col) {
     if (!UNIT_TYPES[unitType]) {
