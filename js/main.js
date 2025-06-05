@@ -1,6 +1,6 @@
 const APP_VERSION = "1.0";
 import { initializeFirebase } from './firebase.js';
-import { initializeSounds } from './sound.js';
+import { initializeSounds, initializeMusic, playMenuMusic, stopMenuMusic } from './sound.js';
 import { animateRiver } from './graphics.js';
 import {
     authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen,
@@ -53,6 +53,7 @@ async function handleFirebaseAuthStateChanged(user) {
         }
 
         showScreen(mainMenuScreen.id);
+        playMenuMusic(); // Start menu music
 
         // Configure and set up event listener for the main menu component
         const mainMenuComponent = document.getElementById('mainMenuComponent');
@@ -135,6 +136,7 @@ async function handleFirebaseAuthStateChanged(user) {
 
 function startGame(mode, difficulty = null) {
     showScreen(gameContainer.id); // Use the ID of the element
+    stopMenuMusic();
     gameState.gameMode = mode;
     gameState.aiDifficulty = difficulty;
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${mode === 'vsAI' ? `VS IA (${difficulty})` : (mode === 'online' ? 'Online' : 'Local')}`;
@@ -188,6 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     firebaseInitResult = await initializeFirebase(); // Store result globally within the module
     if (firebaseInitResult.success) {
         initializeSounds();
+        initializeMusic(); // Initialize music players
         // Use onAuthStateChanged and firebaseAuth from the initialization result
         firebaseInitResult.onAuthStateChanged(firebaseInitResult.firebaseAuth, handleFirebaseAuthStateChanged);
         animateRiver(gameState);

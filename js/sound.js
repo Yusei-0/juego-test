@@ -1,5 +1,12 @@
 // Sonido para la habilidad de curación
 let moveSound, attackSound, damageSound, deathSound, turnSound, healSound;
+import { MENU_MUSIC_PATH } from './constants.js';
+
+// Existing sound effect players
+let moveSound, attackSound, damageSound, deathSound, turnSound;
+
+// Music players
+let menuMusicPlayer;
 
 function initializeSounds() {
     if (typeof Tone !== 'undefined') {
@@ -20,10 +27,25 @@ function initializeSounds() {
     } else { console.warn("Tone.js no está cargado."); }
 }
 
+function initializeMusic() {
+    if (typeof Tone !== 'undefined' && Tone.Player) {
+        menuMusicPlayer = new Tone.Player({
+            url: MENU_MUSIC_PATH,
+            loop: true,
+            autostart: false,
+            volume: -10 // Default volume, can be adjusted
+        }).toDestination();
+
+        console.log("Menu music player initialized.");
+    } else {
+        console.warn("Tone.js or Tone.Player is not available. Music playback disabled.");
+    }
+}
+
 function playSound(type, note = null) {
     if (typeof Tone === 'undefined' || !Tone.context || Tone.context.state !== 'running') {
         if (Tone && Tone.context && Tone.context.state !== 'running') {
-            Tone.start().then(() => {}).catch(e => {});
+            Tone.start().then(() => {}).catch(e => {}); // Attempt to start Tone context on first interaction
         } return;
     }
     switch(type) {
@@ -37,4 +59,50 @@ function playSound(type, note = null) {
     }
 }
 
-export { initializeSounds, playSound, moveSound, attackSound, damageSound, deathSound, turnSound, healSound };
+function playMenuMusic() {
+    if (typeof Tone === 'undefined' || !Tone.Player) return;
+    if (!Tone.context || Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            if (menuMusicPlayer && menuMusicPlayer.loaded) {
+                 if (menuMusicPlayer.state !== "started") menuMusicPlayer.start();
+            } else if (menuMusicPlayer) {
+                menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
+                    menuMusicPlayer.start();
+                }).catch(e => console.error("Error loading menu music:", e));
+            }
+        }).catch(e => console.error("Error starting Tone context for menu music:", e));
+        return;
+    }
+
+    if (menuMusicPlayer && menuMusicPlayer.loaded) {
+        if (menuMusicPlayer.state !== "started") {
+            menuMusicPlayer.start();
+            console.log("Menu music started.");
+        }
+    } else if (menuMusicPlayer) {
+        menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
+            menuMusicPlayer.start();
+            console.log("Menu music loaded and started.");
+        }).catch(e => console.error("Error loading menu music:", e));
+    }
+}
+
+function stopMenuMusic() {
+    if (menuMusicPlayer && menuMusicPlayer.state === "started") {
+        menuMusicPlayer.stop();
+        console.log("Menu music stopped.");
+    }
+}
+
+export {
+    initializeSounds,
+    playSound,
+    moveSound,
+    attackSound,
+    damageSound,
+    deathSound,
+    turnSound,
+    initializeMusic,
+    playMenuMusic,
+    stopMenuMusic
+};

@@ -25,3 +25,6 @@ export const UNIT_TYPES = {
     // Unidad Aérea: Unidad Voladora
     UNIDAD_VOLADORA: { name: 'Unidad Voladora', hp: 18, attack: 7, movement: 2, range: 1, class: 'voladora', isMobile: true, drawFunc: 'drawUnidadVoladora' }
 };
+
+// Music file paths
+export const MENU_MUSIC_PATH = 'assets/music/menu_music.mp3';
