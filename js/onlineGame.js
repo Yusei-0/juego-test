@@ -1,10 +1,10 @@
-import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc } from './firebase.js';
+import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc, updateDoc } from './firebase.js';
 import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
 import { playSound } from './sound.js';
 import {
     showNotification, addLogEntry, clearHighlightsAndSelection, renderHighlightsAndInfo,
     renderUnitRosterOnline, showScreen, showEndGameModal, gameBoardElement, unitLayerElement,
-    waitingGameIdDisplay, waitingStatusText, playerListDiv, gameIdInfoDisplay, createUnitElement
+    waitingGameIdDisplay, waitingStatusText, playerListDiv, gameIdInfoDisplay, createUnitElement, surrenderBtn
 } from './ui.js';
 import { getTileType, createUnitData } from './boardUtils.js';
 import { unitDrawFunctions } from './graphics.js';
@@ -87,6 +87,54 @@ export function canPlayerMakeAnyMoveOnline(gameState, playerId, gameData) { // A
 }
 
 // This function doesn't directly use the main `gameState`, but operates on a passed `boardState`.
+
+async function handleSurrenderOnline(gameState) {
+    if (!gameState || !gameState.gameActive || !gameState.currentGameId || !firestoreDB || !gameState.localPlayerId) return;
+    if (gameState.currentFirebaseGameData && gameState.currentFirebaseGameData.status !== 'active') return; // Don't surrender if game already ended
+
+    const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+    let winningPlayerRole;
+    let surrenderingPlayerNumber;
+
+    if (gameState.localPlayerRole === 'player1') {
+        winningPlayerRole = 'player2_wins';
+        surrenderingPlayerNumber = 1;
+    } else if (gameState.localPlayerRole === 'player2') {
+        winningPlayerRole = 'player1_wins';
+        surrenderingPlayerNumber = 2;
+    } else {
+        console.error("Cannot determine player role for surrender.");
+        showNotification("Error", "No se pudo determinar tu rol para rendirte.");
+        return;
+    }
+
+    try {
+        await runTransaction(firestoreDB, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "Game DNE!";
+            // const gd = gameDoc.data(); // Not strictly needed if just updating fixed fields based on surrender
+            transaction.update(gameRef, {
+                status: winningPlayerRole,
+                winnerReason: "Rendición",
+                currentPlayerId: null, // No more turns
+                lastMoveAt: serverTimestamp(),
+                // Optionally, add a log entry about the surrender
+                gameLog: arrayUnion({
+                    text: `Jugador ${surrenderingPlayerNumber} se ha rendido.`,
+                    type: 'system',
+                    timestamp: new Date().toISOString()
+                })
+            });
+        });
+        // No need to call showEndGameModal here, Firestore listener will trigger updateBoardFromFirestore
+        // which then calls showEndGameModal.
+        addLogEntry(gameState, `Te has rendido. Partida ${gameState.currentGameId}.`, "system");
+    } catch (e) {
+        console.error("Surrender error:", e);
+        showNotification("Error de Rendición", `No se pudo procesar la rendición: ${e}`);
+    }
+}
+
 export function calculatePossibleMovesAndAttacksForUnit_Firestore(unitData, boardState) {
     const possibleActions = [];
     if (!unitData || !UNIT_TYPES[unitData.type]) return possibleActions;
@@ -172,6 +220,12 @@ export function joinGameSessionOnline(gameState, gameIdToJoin) { // gameId passe
         showNotification("Error de Conexión", "Se perdió la conexión.");
         leaveGameCleanup(gameState);
     });
+
+    if (surrenderBtn) {
+        surrenderBtn.removeEventListener('click', gameState.boundHandleSurrenderOnline); // Remove previous listener if any
+        gameState.boundHandleSurrenderOnline = () => handleSurrenderOnline(gameState); // Store bound function for removal
+        surrenderBtn.addEventListener('click', gameState.boundHandleSurrenderOnline);
+    }
 }
 
 export function initializeBoardAndUnitsFirebase(gameState, onTileClickCallback) {
@@ -270,6 +324,50 @@ export function leaveGameCleanup(gameState) {
     if (gameState.unsubscribeGameListener) {
         gameState.unsubscribeGameListener();
         gameState.unsubscribeGameListener = null;
+    }
+
+    if (gameState.gameMode === 'online' &&
+        gameState.currentFirebaseGameData &&
+        gameState.currentFirebaseGameData.status === 'active' &&
+        firestoreDB &&
+        gameState.currentGameId &&
+        gameState.localPlayerId && // Make sure we know who is leaving
+        (gameState.localPlayerId === gameState.currentFirebaseGameData.player1Id || gameState.localPlayerId === gameState.currentFirebaseGameData.player2Id) // Make sure the leaver is a player
+       ) {
+
+        const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+        let winningPlayerRole;
+        let disconnectingPlayerNumber;
+
+        if (gameState.localPlayerId === gameState.currentFirebaseGameData.player1Id) {
+            winningPlayerRole = 'player2_wins'; // Player 1 left, Player 2 wins
+            disconnectingPlayerNumber = 1;
+        } else { // Must be player2Id if passes guard above
+            winningPlayerRole = 'player1_wins'; // Player 2 left, Player 1 wins
+            disconnectingPlayerNumber = 2;
+        }
+
+        // Use a 'set' with merge:true or an 'update' if confident the doc exists.
+        // runTransaction might be too much for a cleanup, but ensures atomicity if other updates were pending.
+        // For simplicity, a direct update, but this might fail if offline.
+        // A more robust solution might involve cloud functions for disconnects.
+        // For now, client-side attempt:
+        updateDoc(gameRef, { // Changed from setDoc to updateDoc
+            status: winningPlayerRole,
+            winnerReason: "Desconexión",
+            currentPlayerId: null,
+            lastMoveAt: serverTimestamp(),
+            gameLog: arrayUnion({
+                text: `Jugador ${disconnectingPlayerNumber} se ha desconectado.`,
+                type: 'system',
+                timestamp: new Date().toISOString()
+            })
+        }).then(() => {
+            addLogEntry(gameState, `Jugador ${disconnectingPlayerNumber} desconectado, partida ${gameState.currentGameId} actualizada.`, "system");
+        }).catch(e => {
+            console.error("Error actualizando partida por desconexión:", e);
+            // Log locally that update failed, game might be stuck for opponent
+        });
     }
 
     if (gameState.gameMode === 'online' && gameState.localPlayerRole === 'player1' &&
