@@ -100,7 +100,8 @@ export function showScreen(screenId) {
         { name: "onlineLobbyScreen", el: onlineLobbyScreen },
         { name: "waitingRoomScreen", el: waitingRoomScreen },
         { name: "gameContainer", el: gameContainer },
-        { name: "gameOverModal", el: gameOverModal }
+        { name: "gameOverModal", el: gameOverModal },
+        { name: "tutorialScreen", el: tutorialScreen }
     ];
 
     screensToManage.forEach(screen => {
