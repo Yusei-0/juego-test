@@ -298,10 +298,25 @@ body {
         @media (min-width: 768px) {
             .game-container {
                 flex-direction: row;
-                align-items: flex-start;
+                align-items: flex-start; /* Keep this */
+                justify-content: flex-start; /* Change from center/space-between if they were there, to align left */
             }
-            .controls-area {
-                max-width: 320px;
+            /* Add styling for children of .game-container within this media query */
+            .game-container > game-log {
+                flex: 0 0 280px; /* Do not grow, do not shrink, basis of 280px */
+                margin-right: 1.5rem; /* Gap between log and board */
+                align-self: stretch; /* Stretch to fill height of game-container */
+            }
+            .game-container > .board-area {
+                flex: 1 1 auto; /* Allow board to grow and shrink */
+                /* board-area styling (existing or new as needed) */
+            }
+            .game-container > .controls-area {
+                flex: 0 0 320px; /* Keep its defined width, do not grow/shrink much */
+                margin-left: 1.5rem; /* Gap between board and controls */
+            }
+            .controls-area { /* This existing rule might need to be merged or reviewed if it conflicts with the one above */
+                max-width: 320px; /* This seems fine, it's ensuring controls-area itself has a max-width */
             }
             .game-title {
                 font-size: 2.25rem;
@@ -405,4 +420,14 @@ body {
      transition: background-color 0.2s;
      color: white;
      margin-top: 1rem; /* Add some space above the button */
+}
+
+/* General styles for game-log custom element */
+game-log {
+    display: flex; /* To allow its internal #logContainer to stretch */
+    flex-direction: column;
+    /* Default width for mobile - it will stack due to .game-container's default flex-direction: column */
+    width: 100%;
+    max-width: 100%; /* Ensure it doesn't overflow on mobile */
+    margin-bottom: 1rem; /* Space when stacked on mobile */
 }
