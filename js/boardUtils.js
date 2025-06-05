@@ -4,6 +4,7 @@ export const TILE_TYPE_MOUNTAIN = 'mountain';
 export const TILE_TYPE_FOREST = 'forest';
 export const TILE_TYPE_SWAMP = 'swamp';
 export const TILE_TYPE_PRAIRIE = 'prairie';
+export const TILE_TYPE_BRIDGE = 'bridge';
 
 export function getTileType(row, col, terrainFeatures) {
     // Check for specific terrain features first
@@ -16,8 +17,8 @@ export function getTileType(row, col, terrainFeatures) {
 
     // Existing logic for river, bridge, and spawn areas
     if (row >= RIVER_START_ROW && row <= RIVER_END_ROW) {
-        if (col === BRIDGE_COL_1 || col === BRIDGE_COL_2) return 'bridge';
-        return 'river';
+        if (col === BRIDGE_COL_1 || col === BRIDGE_COL_2) return TILE_TYPE_BRIDGE;
+        return 'river'; // TILE_TYPE_RIVER could be defined if needed elsewhere
     }
     // Player 1 spawn area (bottom of the board)
     if (row >= BOARD_ROWS - 2) return 'player1-spawn';
