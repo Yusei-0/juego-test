@@ -492,6 +492,20 @@ export function renderHighlightsAndInfo(gameState) {
     updateSelectedUnitInfoPanel(gameState);
 }
 
+export function updateUnitHPDisplay(gameState, unitData) {
+    // This function is called when a unit takes damage or is healed,
+    // and it specifically updates the #unitHealth span in the #selectedUnitInfo panel
+    // IF the affected unit is currently selected.
+    if (unitData && gameState.selectedUnit && gameState.selectedUnit.data && gameState.selectedUnit.data.id === unitData.id) {
+        // unitHealthText is a const defined at the top of ui.js
+        if (unitHealthText) {
+            unitHealthText.textContent = `${Math.max(0, unitData.hp)}/${unitData.maxHp}`;
+        }
+    }
+    // Note: The overall unit roster display (renderUnitRosterLocal/Online) is updated separately
+    // when units are added, removed, or their HP changes significantly (e.g., after an attack).
+}
+
 let allPatchNotes = {}; // Cache for parsed patch notes
 
 async function fetchAndParsePatchNotes() {
