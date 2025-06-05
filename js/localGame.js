@@ -172,10 +172,10 @@ export function switchTurnLocal(gameState) {
     }
 }
 
-export function endGameLocal(gameState, winner, reason = "Condición de Victoria") {
+export function endGameLocal(gameState, winner, reason = "Condición de Victoria", p1Hp = null, p2Hp = null) {
     gameState.gameActive = false;
     if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
-    showEndGameModal(winner, reason);
+    showEndGameModal(gameState, winner, reason, p1Hp, p2Hp); // Pass gameState
     addLogEntry(gameState, `¡JUEGO TERMINADO! Jugador ${winner} ha ganado. Razón: ${reason}.`, 'death');
     clearHighlightsAndSelection(gameState);
     renderHighlightsAndInfo(gameState);

@@ -67,16 +67,21 @@ export function checkTurnLimit(gameState) {
             else if (winner === 2) newStatus = 'player2_wins';
             else newStatus = 'draw';
             // gameActive: false is not a field in Firestore, status dictates activity.
-            transaction.update(gameRef, { status: newStatus, winnerReason: reason });
+            transaction.update(gameRef, {
+                status: newStatus,
+                winnerReason: reason,
+                p1FinalHp: player1TotalHp,
+                p2FinalHp: player2TotalHp
+            });
         }).catch(error => {
             console.error("Error updating game state for turn limit:", error);
             // Fallback to local modal if transaction fails
-            showEndGameModal(gameState, winner, reason + " (Error en transacción)");
+            showEndGameModal(gameState, winner, reason + " (Error en transacción)", player1TotalHp, player2TotalHp);
         });
         // The onSnapshot listener in onlineGame.js will handle calling showEndGameModal
         // once it receives the updated game state. We don't call it directly here for online.
     } else {
-        endGameLocal(gameState, winner, reason);
+        endGameLocal(gameState, winner, reason, player1TotalHp, player2TotalHp);
     }
 }
 

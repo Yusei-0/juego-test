@@ -406,3 +406,9 @@ body {
      color: white;
      margin-top: 1rem; /* Add some space above the button */
 }
+
+#turnCounterDisplay {
+    margin-top: 8px; /* Adjust as needed */
+    font-weight: bold;
+    color: #FFFF00; /* Bright color for visibility, adjust as needed */
+}

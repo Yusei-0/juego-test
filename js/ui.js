@@ -1,4 +1,4 @@
-import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
+import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE, MAX_TURNS } from './constants.js'; // Added MAX_TURNS
 import { playSound } from './sound.js';
 import { unitDrawFunctions } from './graphics.js';
 import { tutorialHTMLContent } from './tutorial_content.js'; // New
@@ -172,6 +172,18 @@ export function updateInfoDisplay(gameState) {
     } else {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
     }
+
+    const turnCounterElement = document.getElementById('turnCounterDisplay');
+    if (turnCounterElement) {
+        let currentTurn = 0;
+        if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
+            currentTurn = gameState.currentFirebaseGameData.currentTurn || 0;
+        } else {
+            currentTurn = gameState.currentTurn || 0;
+        }
+        const turnsRemaining = MAX_TURNS - currentTurn;
+        turnCounterElement.textContent = `Armagedón en: ${turnsRemaining} turnos`;
+    }
 }
 
 // renderGameLog function removed as the component will handle its own rendering via addEntry or setEntries.
@@ -284,16 +296,28 @@ export function updateSelectedUnitInfoPanel(gameState) {
     }
 }
 
-export function showEndGameModal(gameState, winner, reason) { // Added gameState for consistency, though not used directly
+export function showEndGameModal(gameState, winner, reason, p1Hp = null, p2Hp = null) {
     if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
+    let message = "";
     if (winner) {
-        if(gameOverMessage) gameOverMessage.innerHTML = `¡Jugador ${winner} Gana!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
-        if(gameOverMessage) gameOverMessage.className='';
-        if(gameOverMessage) gameOverMessage.classList.add(winner===1?'winner-player1':'winner-player2');
+        message = `¡Jugador ${winner} Gana!<br>`;
     } else {
-        if(gameOverMessage) gameOverMessage.innerHTML = `¡Empate!<br><span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
-        if(gameOverMessage) gameOverMessage.className='';
+        message = `¡Empate!<br>`;
     }
+
+    if (p1Hp !== null && p2Hp !== null) {
+        message += `Vida Total Jugador 1: ${p1Hp}<br>Vida Total Jugador 2: ${p2Hp}<br>`;
+        message += `<span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
+    } else {
+        message += `<span style="font-size:0.8em;color:#a0aec0;">(${reason})</span>`;
+    }
+
+    if(gameOverMessage) gameOverMessage.innerHTML = message;
+    if(gameOverMessage) gameOverMessage.className=''; // Clear existing classes first
+    if(winner) {
+        if(gameOverMessage) gameOverMessage.classList.add(winner===1?'winner-player1':'winner-player2');
+    }
+
     if(gameOverModal) gameOverModal.style.display='flex';
     playSound('death','C4');
 }

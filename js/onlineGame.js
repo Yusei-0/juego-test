@@ -263,7 +263,10 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
         if (firebaseGameData.status === 'player2_wins') winner = 2;
         if (firebaseGameData.status === 'draw') reason = "Empate";
 
-        showEndGameModal(gameState, winner, reason); // Pass gameState
+        const p1FinalHp = firebaseGameData.p1FinalHp; // May be undefined if not turn limit
+        const p2FinalHp = firebaseGameData.p2FinalHp; // May be undefined
+
+        showEndGameModal(gameState, winner, reason, p1FinalHp, p2FinalHp);
     }
 }
 
