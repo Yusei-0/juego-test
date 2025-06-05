@@ -199,8 +199,32 @@ export function switchTurnLocal(gameState) {
     if (gameState.gameActive && !canPlayerMakeAnyMoveLocal(gameState)) {
         endGameLocal(gameState, gameState.currentPlayer === 1 ? 2 : 1, "Sin Movimientos"); return;
     }
-    renderHighlightsAndInfo(gameState);
-    renderUnitRosterLocal(gameState);
+    renderHighlightsAndInfo(gameState); // Initial UI update for the new player's turn
+    renderUnitRosterLocal(gameState); // Update roster for the new player
+
+    // New loss condition check
+    if (gameState.gameActive) { // Only check if game is still active
+        const canAct = canPlayerPerformActionWithExistingUnits(gameState);
+
+        if (!canAct) { // Player cannot make any move with their current units
+            const currentMP = gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints;
+            const cheapestSummonCost = getCheapestSummonableUnitCost();
+
+            if (currentMP < cheapestSummonCost) {
+                // Player has no actions AND cannot afford to summon the cheapest unit
+                addLogEntry(gameState, `Jugador ${gameState.currentPlayer} no puede realizar acciones ni invocar la unidad más barata (costo: ${cheapestSummonCost}).`, 'system');
+                endGameLocal(gameState, gameState.currentPlayer === 1 ? 2 : 1, "Sin acciones y sin PM para invocar");
+                return; // Exit switchTurnLocal as game has ended
+            } else {
+                // Player cannot act with existing units, BUT CAN summon.
+                addLogEntry(gameState, `Jugador ${gameState.currentPlayer} no puede realizar acciones con unidades existentes, pero puede invocar.`, 'info');
+                // Optionally, notify the player they should summon
+                // showNotification("Aviso", "No puedes realizar acciones con tus unidades. ¡Considera invocar nuevas unidades!");
+            }
+        }
+    }
+
+    // Continue with AI turn logic if applicable
     if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber && gameState.gameActive) {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'block';
         setTimeout(() => aiTakeTurn(gameState), 1200);
@@ -208,6 +232,18 @@ export function switchTurnLocal(gameState) {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
     }
 }
+
+function getCheapestSummonableUnitCost() {
+    let minCost = Infinity;
+    for (const type in UNIT_TYPES) {
+        // Ensure it's a summonable unit (has summonCost) and not BASE
+        if (type !== 'BASE' && UNIT_TYPES[type].summonCost && UNIT_TYPES[type].summonCost < minCost) {
+            minCost = UNIT_TYPES[type].summonCost;
+        }
+    }
+    return minCost === Infinity ? Infinity : minCost; // Return Infinity if no summonable unit found, else the cost
+}
+
 
 export function endGameLocal(gameState, winner, reason = "Condición de Victoria") {
     gameState.gameActive = false;
@@ -218,17 +254,22 @@ export function endGameLocal(gameState, winner, reason = "Condición de Victoria
     renderHighlightsAndInfo(gameState);
 }
 
-export function canPlayerMakeAnyMoveLocal(gameState) {
-    const playerNumber = gameState.currentPlayer; // In local/AI, current player is the one to check
+export function canPlayerPerformActionWithExistingUnits(gameState) {
+    const playerNumber = gameState.currentPlayer;
     for (const unitId in gameState.units) {
-        const unitElement = gameState.units[unitId];
+        const unitElement = gameState.units[unitId]; // Access the DOM element
+        if (!unitElement || !unitElement.__unitData) continue; // Ensure element and its data exist
         const unitData = unitElement.__unitData;
-        if (unitData && unitData.player === playerNumber && UNIT_TYPES[unitData.type].isMobile) {
+
+        if (unitData && unitData.player === playerNumber) {
+            // calculatePossibleMovesAndAttacksForUnit considers unit's mobility (isMobile for moves, range for attacks/heals)
             const possibleActions = calculatePossibleMovesAndAttacksForUnit(gameState, unitData, false);
-            if (possibleActions.length > 0) return true;
+            if (possibleActions.length > 0) {
+                return true; // Found at least one unit that can do something
+            }
         }
     }
-    return false;
+    return false; // No unit can perform any action
 }
 
 // Realiza la acción de curar a una unidad aliada.
