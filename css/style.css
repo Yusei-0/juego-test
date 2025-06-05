@@ -314,3 +314,95 @@ body {
              .game-title { font-size: 1.5rem; }
              .modal-content h2 { font-size: 1.5rem; }
         }
+
+/* Tutorial Screen Styles */
+.tutorial-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Align items to the start for scrolling */
+    width: 100%;
+    max-width: 800px; /* Allow wider content for tutorial */
+    height: calc(100vh - 150px); /* Adjust height to leave space for title and button */
+    padding: 1.5rem;
+    background-color: #2d3748; /* gray-800 */
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+    text-align: left;
+    font-family: 'Roboto Condensed', sans-serif;
+    color: #e2e8f0; /* gray-300 */
+    overflow-y: hidden; /* Hide overall scroll, content area will scroll */
+}
+
+.tutorial-title {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.8rem; /* Slightly larger title */
+    color: #90cdf4; /* blue-400 */
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.tutorial-content-area {
+    width: 100%;
+    height: calc(100% - 100px); /* Adjust based on title and button height */
+    overflow-y: auto; /* Enable scrolling for tutorial content */
+    padding-right: 15px; /* For scrollbar visibility */
+    border: 1px solid #4a5568; /* gray-600 */
+    border-radius: 0.3rem;
+    background-color: #1a202c; /* gray-900 for contrast */
+    padding: 1rem;
+    line-height: 1.6;
+}
+
+.tutorial-content-area h2 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.2rem;
+    color: #63b3ed; /* blue-400 */
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.tutorial-content-area h3 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.0rem;
+    color: #faf089; /* yellow-300 */
+    margin-top: 0.8rem;
+    margin-bottom: 0.3rem;
+}
+
+.tutorial-content-area p,
+.tutorial-content-area li {
+    margin-bottom: 0.75rem;
+    color: #cbd5e0; /* gray-400 */
+}
+
+.tutorial-content-area strong {
+    color: #f6e05e; /* yellow-400 */
+}
+
+.tutorial-content-area ul,
+.tutorial-content-area ol {
+    margin-left: 20px;
+    margin-bottom: 1rem;
+}
+
+/* Ensure menu-screen class is flexible enough or tutorial screen has its own display property */
+#tutorialScreen {
+    /* display: none; /* Initially hidden, controlled by JS */
+    /* align-items: center; /* Center the .tutorial-container */
+    /* justify-content: center; /* Center the .tutorial-container */
+    /* These are already in .menu-screen, but ensure they are applied if #tutorialScreen overrides some */
+}
+
+#backToMainMenuBtn_Tutorial {
+     font-family: 'Press Start 2P', cursive;
+     font-size: 0.9rem;
+     padding: 0.7rem 1.2rem;
+     min-width: 200px;
+     border: none;
+     border-radius: 0.3rem;
+     cursor: pointer;
+     transition: background-color 0.2s;
+     color: white;
+     margin-top: 1rem; /* Add some space above the button */
+}
