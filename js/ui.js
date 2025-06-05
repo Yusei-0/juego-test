@@ -92,12 +92,36 @@ export function showNotification(title, message) {
 }
 
 export function showScreen(screenId) {
-    [authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen, tutorialScreen, waitingRoomScreen, gameContainer, gameOverModal].forEach(el => { // Added tutorialScreen
-        if(el) el.style.display = 'none';
+    console.log(`showScreen called for: ${screenId}`);
+    const screensToManage = [
+        { name: "authLoadingScreen", el: authLoadingScreen },
+        { name: "mainMenuScreen", el: mainMenuScreen },
+        { name: "difficultyScreen", el: difficultyScreen },
+        { name: "onlineLobbyScreen", el: onlineLobbyScreen },
+        { name: "waitingRoomScreen", el: waitingRoomScreen },
+        { name: "gameContainer", el: gameContainer },
+        { name: "gameOverModal", el: gameOverModal }
+    ];
+
+    screensToManage.forEach(screen => {
+        if (screen.el) {
+            if (screen.el.id === screenId) {
+                console.log(`Showing ${screen.name} (id: ${screen.el.id})`);
+                screen.el.style.display = 'flex'; // Or 'block' if that's more appropriate for some. 'flex' is common for these screens.
+            } else {
+                // console.log(`Hiding ${screen.name} (id: ${screen.el.id})`); // This might be too verbose
+                screen.el.style.display = 'none';
+            }
+        } else {
+            console.warn(`Screen element "${screen.name}" is null or undefined.`);
+        }
     });
-    const screenToShow = document.getElementById(screenId); // screenId is expected to be the actual ID string
-    if (screenToShow) screenToShow.style.display = 'flex';
-    if (screenId === 'gameContainer' && gameContainer) gameContainer.style.display = 'flex';
+
+    // Special case for gameContainer if its display needs to be 'flex' specifically
+    // and it's different from other screens, though current CSS uses 'flex' for menu-screen too.
+    // This might be redundant if gameContainer is handled correctly above.
+    // For now, the loop above should handle it if screenId matches gameContainer.id.
+    // Example: if (screenId === 'gameContainer' && gameContainer) gameContainer.style.display = 'flex';
 }
 
 export function updateInfoDisplay(gameState) {
