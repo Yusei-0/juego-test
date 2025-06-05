@@ -1,5 +1,5 @@
 import { initializeFirebase } from './firebase.js';
-import { initializeSounds, initializeMusic, playMenuMusic, stopMenuMusic, playCombatMusic, stopCombatMusic } from './sound.js';
+import { initializeSounds, initializeMusic, playMenuMusic, stopMenuMusic } from './sound.js';
 import { animateRiver } from './graphics.js';
 import {
     authLoadingScreen, mainMenuScreen, difficultyScreen, onlineLobbyScreen,
@@ -131,7 +131,6 @@ async function handleFirebaseAuthStateChanged(user) {
 function startGame(mode, difficulty = null) {
     showScreen(gameContainer.id); // Use the ID of the element
     stopMenuMusic();
-    playCombatMusic();
     gameState.gameMode = mode;
     gameState.aiDifficulty = difficulty;
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${mode === 'vsAI' ? `VS IA (${difficulty})` : (mode === 'online' ? 'Online' : 'Local')}`;
@@ -154,9 +153,9 @@ if(aiEasyBtn) aiEasyBtn.addEventListener('click', (e) => startGame('vsAI', e.tar
 if(aiMediumBtn) aiMediumBtn.addEventListener('click', (e) => startGame('vsAI', e.target.dataset.difficulty));
 if(aiHardBtn) aiHardBtn.addEventListener('click', (e) => startGame('vsAI', e.target.dataset.difficulty));
 
-if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () => { stopCombatMusic(); playMenuMusic(); showScreen(mainMenuScreen.id); }); // Pass ID
-if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => { stopCombatMusic(); playMenuMusic(); showScreen(mainMenuScreen.id); }); // Pass ID
-if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => { stopCombatMusic(); playMenuMusic(); showScreen(mainMenuScreen.id); });
+if(backToMainMenuBtn_Diff) backToMainMenuBtn_Diff.addEventListener('click', () => { playMenuMusic(); showScreen(mainMenuScreen.id); }); // Pass ID
+if(backToMainMenuBtn_Lobby) backToMainMenuBtn_Lobby.addEventListener('click', () => { playMenuMusic(); showScreen(mainMenuScreen.id); }); // Pass ID
+if(backToMainMenuBtn_Tutorial) backToMainMenuBtn_Tutorial.addEventListener('click', () => { playMenuMusic(); showScreen(mainMenuScreen.id); });
 
 if(leaveWaitingRoomBtn) leaveWaitingRoomBtn.addEventListener('click', () => leaveGameCleanup(gameState));
 if(generalLeaveGameBtn) generalLeaveGameBtn.addEventListener('click', () => leaveGameCleanup(gameState));

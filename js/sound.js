@@ -1,11 +1,10 @@
-import { MENU_MUSIC_PATH, COMBAT_MUSIC_PATH } from './constants.js';
+import { MENU_MUSIC_PATH } from './constants.js';
 
 // Existing sound effect players
 let moveSound, attackSound, damageSound, deathSound, turnSound;
 
 // Music players
 let menuMusicPlayer;
-let combatMusicPlayer;
 
 function initializeSounds() {
     if (typeof Tone !== 'undefined') {
@@ -32,18 +31,7 @@ function initializeMusic() {
             volume: -10 // Default volume, can be adjusted
         }).toDestination();
 
-        combatMusicPlayer = new Tone.Player({
-            url: COMBAT_MUSIC_PATH,
-            loop: true,
-            autostart: false,
-            volume: -10 // Default volume, can be adjusted
-        }).toDestination();
-
-        // Optional: Pre-load audio files.
-        // Tone.loaded().then(() => {
-        //   console.log("Music files pre-loaded.");
-        // });
-        console.log("Music players initialized.");
+        console.log("Menu music player initialized.");
     } else {
         console.warn("Tone.js or Tone.Player is not available. Music playback disabled.");
     }
@@ -69,11 +57,9 @@ function playMenuMusic() {
     if (!Tone.context || Tone.context.state !== 'running') {
         Tone.start().then(() => {
             if (menuMusicPlayer && menuMusicPlayer.loaded) {
-                 if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
                  if (menuMusicPlayer.state !== "started") menuMusicPlayer.start();
             } else if (menuMusicPlayer) {
                 menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
-                    if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
                     menuMusicPlayer.start();
                 }).catch(e => console.error("Error loading menu music:", e));
             }
@@ -82,14 +68,12 @@ function playMenuMusic() {
     }
 
     if (menuMusicPlayer && menuMusicPlayer.loaded) {
-        if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
         if (menuMusicPlayer.state !== "started") {
             menuMusicPlayer.start();
             console.log("Menu music started.");
         }
     } else if (menuMusicPlayer) {
         menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
-            if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
             menuMusicPlayer.start();
             console.log("Menu music loaded and started.");
         }).catch(e => console.error("Error loading menu music:", e));
@@ -103,45 +87,6 @@ function stopMenuMusic() {
     }
 }
 
-function playCombatMusic() {
-    if (typeof Tone === 'undefined' || !Tone.Player) return;
-    if (!Tone.context || Tone.context.state !== 'running') {
-        Tone.start().then(() => {
-            if (combatMusicPlayer && combatMusicPlayer.loaded) {
-                if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
-                if (combatMusicPlayer.state !== "started") combatMusicPlayer.start();
-            } else if (combatMusicPlayer) {
-                combatMusicPlayer.load(COMBAT_MUSIC_PATH).then(() => {
-                    if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
-                    combatMusicPlayer.start();
-                }).catch(e => console.error("Error loading combat music:", e));
-            }
-        }).catch(e => console.error("Error starting Tone context for combat music:", e));
-        return;
-    }
-
-    if (combatMusicPlayer && combatMusicPlayer.loaded) {
-        if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
-        if (combatMusicPlayer.state !== "started") {
-            combatMusicPlayer.start();
-            console.log("Combat music started.");
-        }
-    } else if (combatMusicPlayer) {
-        combatMusicPlayer.load(COMBAT_MUSIC_PATH).then(() => {
-            if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
-            combatMusicPlayer.start();
-            console.log("Combat music loaded and started.");
-        }).catch(e => console.error("Error loading combat music:", e));
-    }
-}
-
-function stopCombatMusic() {
-    if (combatMusicPlayer && combatMusicPlayer.state === "started") {
-        combatMusicPlayer.stop();
-        console.log("Combat music stopped.");
-    }
-}
-
 export {
     initializeSounds,
     playSound,
@@ -152,7 +97,5 @@ export {
     turnSound,
     initializeMusic,
     playMenuMusic,
-    stopMenuMusic,
-    playCombatMusic,
-    stopCombatMusic
+    stopMenuMusic
 };

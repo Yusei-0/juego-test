@@ -20,4 +20,3 @@ export const UNIT_TYPES = {
 
 // Music file paths
 export const MENU_MUSIC_PATH = 'assets/music/menu_music.mp3';
-export const COMBAT_MUSIC_PATH = 'assets/music/combat_music.mp3';
