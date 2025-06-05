@@ -203,4 +203,3 @@ export function cleanupMatchmakingListeners() {
         currentGameStateRef.isMatchmaking = false;
     }
 }
-```
