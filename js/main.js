@@ -33,6 +33,7 @@ let gameState = {
     currentFirebaseGameData: null, localPlayerId: null, localPlayerRole: null,
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
+    currentTurn: 0, // Added currentTurn
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
     unsubscribeGameListener: null
 };

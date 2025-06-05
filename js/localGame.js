@@ -4,7 +4,7 @@ import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from 
 import { playSound } from './sound.js';
 import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
 import { aiTakeTurn } from './ai.js';
-import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
+import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection, checkTurnLimit } from './gameActions.js'; // Added checkTurnLimit
 import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
 
 export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
@@ -68,6 +68,10 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
         setTimeout(() => aiTakeTurn(gameState), 1000);
     } else {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'none';
+    }
+
+    if (gameState.gameActive) { // Only check if game is still active
+        checkTurnLimit(gameState);
     }
 }
 
@@ -152,6 +156,7 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
 export function switchTurnLocal(gameState) {
     clearHighlightsAndSelection(gameState);
     gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+    gameState.currentTurn++; // Increment turn counter
     addLogEntry(gameState, `Turno del Jugador ${gameState.currentPlayer}.`, 'turn');
     playSound('turn', gameState.currentPlayer === 1 ? 'G5' : 'A5');
     if (gameState.gameActive && !canPlayerMakeAnyMoveLocal(gameState)) {

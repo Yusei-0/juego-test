@@ -1,5 +1,5 @@
 import { firestoreDB, doc, runTransaction, serverTimestamp, arrayUnion, deleteDoc, onSnapshot, setDoc } from './firebase.js';
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
+import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_CANVAS_SIZE, MAX_TURNS } from './constants.js'; // Added MAX_TURNS
 import { playSound } from './sound.js';
 import {
     showNotification, addLogEntry, clearHighlightsAndSelection, renderHighlightsAndInfo,
@@ -8,7 +8,7 @@ import {
 } from './ui.js';
 import { getTileType, createUnitData } from './boardUtils.js';
 import { unitDrawFunctions } from './graphics.js';
-import { onTileClick } from './gameActions.js'; // Assuming onTileClick is correctly set up in main.js to be passed
+import { onTileClick, checkTurnLimit } from './gameActions.js'; // Added checkTurnLimit
 
 
 export const FIRESTORE_GAME_PATH_PREFIX = "river_wars_online_games_v2";
@@ -25,8 +25,9 @@ export async function performMoveOnline(gameState, unitData, toR, toC) {
             if(!mU || mU.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid move.";
             mU.row = toR; mU.col = toC;
             const nPId = gd.player1Id === gameState.localPlayerId ? gd.player2Id : gd.player1Id;
+            gd.currentTurn = (gd.currentTurn || 0) + 1; // Increment turn counter
             const uL = [newLogEntry, ...gd.gameLog.slice(0,49)];
-            transaction.update(gameRef, {units:uU, currentPlayerId:nPId, lastMoveAt:serverTimestamp(), gameLog:uL});
+            transaction.update(gameRef, {units:uU, currentPlayerId:nPId, lastMoveAt:serverTimestamp(), gameLog:uL, currentTurn: gd.currentTurn});
         });
         playSound('move','E4');
     } catch (e) { console.error("Move err:",e); showNotification("Move Error",`${e}`);}
@@ -61,8 +62,9 @@ export async function performAttackOnline(gameState, attackerData, targetData) {
                 logEntries.unshift({text:`Jugador ${fA.player} gana! Oponente (Jugador ${fT.player}) no tiene movimientos.`,type:'death',timestamp:new Date().toISOString()});
                 fNPId = null;
             }
+            gd.currentTurn = (gd.currentTurn || 0) + 1; // Increment turn counter
             const uL = [...logEntries, ...gd.gameLog.slice(0, 50 - logEntries.length)];
-            transaction.update(gameRef, {units:uU, currentPlayerId:nS==='active'?fNPId:null, status:nS, winnerReason:wR, lastMoveAt:serverTimestamp(), gameLog:uL});
+            transaction.update(gameRef, {units:uU, currentPlayerId:nS==='active'?fNPId:null, status:nS, winnerReason:wR, lastMoveAt:serverTimestamp(), gameLog:uL, currentTurn: gd.currentTurn});
         });
         playSound('attack');
     } catch(e){console.error("Attack err:",e); showNotification("Attack Error",`${e}`);}
@@ -250,6 +252,11 @@ export function updateBoardFromFirestore(gameState, firebaseGameData) {
     renderHighlightsAndInfo(gameState);
     renderUnitRosterOnline(gameState);
 
+    // Check for turn limit BEFORE checking other win conditions
+    if (gameState.gameActive && firebaseGameData.currentTurn >= MAX_TURNS && firebaseGameData.status === 'active') {
+        checkTurnLimit(gameState); // gameState now contains currentFirebaseGameData
+    }
+
     if (!gameState.gameActive && (firebaseGameData.status.includes('_wins') || firebaseGameData.status === 'draw')) {
         let winner = null; let reason = firebaseGameData.winnerReason || "Partida Terminada";
         if (firebaseGameData.status === 'player1_wins') winner = 1;
@@ -318,6 +325,7 @@ export async function hostNewOnlineGame(gameState) {
         gameId: gameId, player1Id: gameState.localPlayerId, player2Id: null,
         currentPlayerId: gameState.localPlayerId, units: initialUnits, status: 'waiting',
         createdAt: serverTimestamp(), lastMoveAt: serverTimestamp(),
+        currentTurn: 0, // Added currentTurn
         gameLog: [{text: `Partida ${gameId} creada por Jugador 1 (${gameState.localPlayerId.substring(0,5)}...).`, type: 'system', timestamp: new Date().toISOString()}],
         winnerReason: ""
     };

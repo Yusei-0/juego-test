@@ -1,9 +1,84 @@
 // gameState will be passed as an argument to functions needing it.
-import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
+import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS, MAX_TURNS } from './constants.js';
 import { getTileType } from './boardUtils.js'; // Updated import
-import { performMoveOnline, performAttackOnline } from './onlineGame.js';
-import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal } from './localGame.js';
-import { renderHighlightsAndInfo } from './ui.js';
+import { performMoveOnline, performAttackOnline, FIRESTORE_GAME_PATH_PREFIX } from './onlineGame.js';
+import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, endGameLocal } from './localGame.js';
+import { renderHighlightsAndInfo, showEndGameModal } from './ui.js';
+import { firestoreDB, doc, runTransaction } from './firebase.js';
+
+export function checkTurnLimit(gameState) {
+    const currentTurn = gameState.gameMode === 'online' ? gameState.currentFirebaseGameData.currentTurn : gameState.currentTurn;
+
+    if (currentTurn < MAX_TURNS) {
+        return;
+    }
+
+    let player1TotalHp = 0;
+    let player2TotalHp = 0;
+    const units = gameState.gameMode === 'online' ? gameState.currentFirebaseGameData.units : gameState.units;
+
+    if (gameState.gameMode === 'online') {
+        for (const unitId in units) {
+            const unit = units[unitId];
+            if (unit.player === 1) {
+                player1TotalHp += unit.hp;
+            } else if (unit.player === 2) {
+                player2TotalHp += unit.hp;
+            }
+        }
+    } else { // Local or vsAI
+        for (const unitId in units) {
+            const unitElement = units[unitId]; // These are HTMLElements
+            const unitData = unitElement.__unitData;
+            if (unitData.player === 1) {
+                player1TotalHp += unitData.hp;
+            } else if (unitData.player === 2) {
+                player2TotalHp += unitData.hp;
+            }
+        }
+    }
+
+    let winner = null;
+    let reason = `Límite de ${MAX_TURNS} turnos alcanzado`;
+
+    if (player1TotalHp > player2TotalHp) {
+        winner = 1;
+    } else if (player2TotalHp > player1TotalHp) {
+        winner = 2;
+    } else {
+        reason += ", ¡Empate en HP!";
+    }
+
+    gameState.gameActive = false; // Set game as inactive
+
+    if (gameState.gameMode === 'online') {
+        if (!gameState.currentGameId || !firestoreDB) {
+            console.error("Turn limit reached but gameId or Firestore DB not available for online game.");
+            showEndGameModal(gameState, winner, reason + " (Error al finalizar online)"); // Show local modal as fallback
+            return;
+        }
+        const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
+        runTransaction(firestoreDB, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "Game DNE!";
+            const gd = gameDoc.data();
+            let newStatus = gd.status;
+            if (winner === 1) newStatus = 'player1_wins';
+            else if (winner === 2) newStatus = 'player2_wins';
+            else newStatus = 'draw';
+            // gameActive: false is not a field in Firestore, status dictates activity.
+            transaction.update(gameRef, { status: newStatus, winnerReason: reason });
+        }).catch(error => {
+            console.error("Error updating game state for turn limit:", error);
+            // Fallback to local modal if transaction fails
+            showEndGameModal(gameState, winner, reason + " (Error en transacción)");
+        });
+        // The onSnapshot listener in onlineGame.js will handle calling showEndGameModal
+        // once it receives the updated game state. We don't call it directly here for online.
+    } else {
+        endGameLocal(gameState, winner, reason);
+    }
+}
 
 export function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
