@@ -1,12 +1,32 @@
 // gameState will be passed as an argument to functions needing it.
 import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
-import { getTileType } from './boardUtils.js'; // Updated import
+import { getTileType, TILE_TYPE_SWAMP, TILE_TYPE_FOREST, TILE_TYPE_MOUNTAIN, TILE_TYPE_BRIDGE } from './boardUtils.js'; // Updated import with terrain types
 import { performMoveOnline, performAttackOnline } from './onlineGame.js';
 import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, performHealLocal } from './localGame.js';
 import { renderHighlightsAndInfo } from './ui.js';
+import { updateVisibility } from './visibility.js';
 
 export function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
+
+    // Visibility Check
+    const isBaseTileP1 = gameState.player1Base && gameState.player1Base.row === row && gameState.player1Base.col === col;
+    const isBaseTileP2 = gameState.player2Base && gameState.player2Base.row === row && gameState.player2Base.col === col;
+    const isBaseTile = isBaseTileP1 || isBaseTileP2;
+
+    let isVisible = false;
+    if (gameState.visibilityGrid && gameState.visibilityGrid[row] && gameState.visibilityGrid[row][col] !== undefined) {
+        isVisible = gameState.visibilityGrid[row][col] === 2;
+    }
+
+    if (!isVisible && !isBaseTile) {
+        // console.log("Clicked on a non-visible, non-base tile. Action ignored.");
+        // Optionally, provide feedback to the user, e.g., a subtle sound or visual cue.
+        // For now, just clearing selection if any and returning.
+        clearHighlightsAndSelection(gameState);
+        renderHighlightsAndInfo(gameState); // Re-render to clear any visual cues from previous selection
+        return;
+    }
 
     if (gameState.gameMode === 'online') {
         if (!gameState.currentFirebaseGameData || gameState.currentFirebaseGameData.currentPlayerId !== gameState.localPlayerId) return;
@@ -21,27 +41,28 @@ export function onTileClick(gameState, row, col) {
         const actingUnitData = gameState.selectedUnit.data;
         if (gameState.gameMode === 'online') {
             if (highlightedAction.type === 'move') {
-                performMoveOnline(gameState, actingUnitData, row, col);
+                performMoveOnline(gameState, actingUnitData, row, col).then(() => updateVisibility(gameState));
             } else if (highlightedAction.type === 'attack') {
-                performAttackOnline(gameState, actingUnitData, gameState.board[row][col]);
+                performAttackOnline(gameState, actingUnitData, gameState.board[row][col]).then(() => updateVisibility(gameState));
             }
+            // Note: Online heal not implemented yet, but if it were, it would need .then(() => updateVisibility(gameState))
         } else {
-            if (highlightedAction.type === 'move') {
-                moveUnitAndAnimateLocal(gameState, actingUnitData, row, col);
-            } else if (highlightedAction.type === 'attack') {
-                attackUnitAndAnimateLocal(gameState, actingUnitData, gameState.board[row][col]);
-            } else if (highlightedAction.type === 'heal') {
-                // Maneja la acción de curación.
-                // Ensure the target unit data is correctly passed
-                const targetUnitDataOnTile = gameState.board[row][col];
-                if (targetUnitDataOnTile && targetUnitDataOnTile.id === highlightedAction.targetId) {
-                     // performHealLocal will be created in the next step.
-                     // For now, this call implies its future existence.
-                    performHealLocal(gameState, actingUnitData, targetUnitDataOnTile, highlightedAction.healAmount);
-                } else {
-                    console.error("Heal target mismatch or not found on tile!");
+            // For local game actions, they are async, so we await them then update.
+            (async () => {
+                if (highlightedAction.type === 'move') {
+                    await moveUnitAndAnimateLocal(gameState, actingUnitData, row, col);
+                } else if (highlightedAction.type === 'attack') {
+                    await attackUnitAndAnimateLocal(gameState, actingUnitData, gameState.board[row][col]);
+                } else if (highlightedAction.type === 'heal') {
+                    const targetUnitDataOnTile = gameState.board[row][col];
+                    if (targetUnitDataOnTile && targetUnitDataOnTile.id === highlightedAction.targetId) {
+                        await performHealLocal(gameState, actingUnitData, targetUnitDataOnTile, highlightedAction.healAmount);
+                    } else {
+                        console.error("Heal target mismatch or not found on tile!");
+                    }
                 }
-            }
+                updateVisibility(gameState);
+            })();
         }
     }
     else if (unitDataOnTile) {
@@ -82,79 +103,122 @@ export function clearHighlightsAndSelection(gameState) {
 
 export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, updateGlobalHighlights = false) {
     const possibleActions = [];
-    if (!unitData || !UNIT_TYPES[unitData.type]) return possibleActions; // Guard against undefined unit type
-    const { movement, range, isMobile } = UNIT_TYPES[unitData.type]; // Destructure isMobile
-    const startR = unitData.row; const startC = unitData.col;
+    if (!unitData || !UNIT_TYPES[unitData.type]) return possibleActions;
 
-    if (movement > 0 && isMobile) { // Check isMobile before calculating moves
-        let q=[{r:startR,c:startC,dist:0}],v=new Set([`${startR},${startC}`]);
-        while(q.length>0){
-            let curr=q.shift();
-            if(curr.dist<movement){
-                const n=[[-1,0],[1,0],[0,-1],[0,1]];
-                for(const [dr,dc] of n){
-                    const nr=curr.r+dr,nc=curr.c+dc,pk=`${nr},${nc}`;
-                    if(nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS&&!v.has(pk)){
-                        const tileIsEmpty = (!gameState.board[nr] || !gameState.board[nr][nc]);
+    const unitFullType = UNIT_TYPES[unitData.type];
+    const { movement, range, isMobile, class: unitClass } = unitFullType;
+    const startR = unitData.row;
+    const startC = unitData.col;
+
+    // Movement Calculation (BFS)
+    if (movement > 0 && isMobile) {
+        const q = [{ r: startR, c: startC, dist: 0 }];
+        const visited = new Set([`${startR},${startC}`]); // Keep track of visited cells to avoid cycles and redundant checks
+
+        while (q.length > 0) {
+            const curr = q.shift();
+
+            // Explore neighbors: up, down, left, right
+            const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (const [dr, dc] of neighbors) {
+                const nr = curr.r + dr;
+                const nc = curr.c + dc;
+                const newPosKey = `${nr},${nc}`;
+
+                if (nr >= 0 && nr < BOARD_ROWS && nc >= 0 && nc < BOARD_COLS && !visited.has(newPosKey)) {
+                    visited.add(newPosKey); // Mark as visited early
+
+                    const targetTileType = getTileType(nr, nc, gameState.terrainFeatures);
+                    const unitOnTargetTile = gameState.board[nr] ? gameState.board[nr][nc] : null;
+
+                    let costToEnter = 1;
+                    if (targetTileType === TILE_TYPE_SWAMP && unitData.type !== 'UNIDAD_VOLADORA') { // Flying units are not affected by swamp
+                        costToEnter = 2;
+                    }
+
+                    if (curr.dist + costToEnter <= movement) {
                         let canMoveToTile = false;
-
-                        // Comprueba si la unidad es voladora para aplicar reglas de movimiento especiales
                         if (unitData.type === 'UNIDAD_VOLADORA') {
-                            canMoveToTile = tileIsEmpty; // Flying unit can only be blocked by another unit at the destination
+                            canMoveToTile = !unitOnTargetTile; // Flying units can only be blocked by another unit at the destination
                         } else {
-                            // Reglas de movimiento estándar para unidades terrestres
-                            const tt = getTileType(nr, nc); // Get tile type only if not a flyer
-                            canMoveToTile = tt !== 'river' && tileIsEmpty; // Standard ground unit movement rules
+                            // Standard ground unit movement rules
+                            canMoveToTile = targetTileType !== 'river' && !unitOnTargetTile;
+
+                            // Forest Movement Rule (Blocking by enemy)
+                            if (targetTileType === TILE_TYPE_FOREST && unitOnTargetTile && unitOnTargetTile.player !== unitData.player) {
+                                canMoveToTile = false;
+                            }
                         }
 
                         if (canMoveToTile) {
-                            const a={unitId:unitData.id,fromR:startR,fromC:startC,row:nr,col:nc,type:'move'};
-                            possibleActions.push(a);
-                            if(updateGlobalHighlights)gameState.highlightedMoves.push(a);
-                            v.add(pk);
-                            q.push({r:nr,c:nc,dist:curr.dist+1});
+                            const moveAction = { unitId: unitData.id, fromR: startR, fromC: startC, row: nr, col: nc, type: 'move' };
+                            possibleActions.push(moveAction);
+                            if (updateGlobalHighlights) gameState.highlightedMoves.push(moveAction);
+                            q.push({ r: nr, c: nc, dist: curr.dist + costToEnter });
                         }
                     }
                 }
             }
         }
     }
+
+    // Attack Calculation
     if (range > 0) {
-        for(let ro=-range;ro<=range;ro++){
-            for(let co=-range;co<=range;co++){
-                if(Math.abs(ro)+Math.abs(co)>range||(ro===0&&co===0))continue;
-                const tr=startR+ro,tc=startC+co;
-                if(tr>=0&&tr<BOARD_ROWS&&tc>=0&&tc<BOARD_COLS){
-                    const tudob= gameState.board[tr] ? gameState.board[tr][tc] : null; // Check board bounds
-                    if(tudob&&tudob.player!==unitData.player){
-                        const a={unitId:unitData.id,fromR:startR,fromC:startC,row:tr,col:tc,type:'attack',targetId:tudob.id};
-                        possibleActions.push(a);
-                        if(updateGlobalHighlights)gameState.highlightedMoves.push(a);
+        const attackingUnitTileType = getTileType(startR, startC, gameState.terrainFeatures);
+        let effectiveRange = range;
+
+        if (attackingUnitTileType === TILE_TYPE_MOUNTAIN && unitClass === 'arquero') {
+            effectiveRange += 1;
+        }
+
+        for (let ro = -effectiveRange; ro <= effectiveRange; ro++) {
+            for (let co = -effectiveRange; co <= effectiveRange; co++) {
+                if (Math.abs(ro) + Math.abs(co) > effectiveRange || (ro === 0 && co === 0)) continue;
+
+                const tr = startR + ro; // Target row
+                const tc = startC + co; // Target col
+
+                if (tr >= 0 && tr < BOARD_ROWS && tc >= 0 && tc < BOARD_COLS) {
+                    const targetUnitOnTile = gameState.board[tr] ? gameState.board[tr][tc] : null;
+
+                    if (targetUnitOnTile && targetUnitOnTile.player !== unitData.player) {
+                        const targetTileType = getTileType(tr, tc, gameState.terrainFeatures);
+                        let canTarget = true;
+
+                        // Forest Targeting Rule (Visibility for Attack)
+                        if (targetTileType === TILE_TYPE_FOREST) {
+                            const isAdjacent = Math.abs(startR - tr) + Math.abs(startC - tc) === 1;
+                            if (!isAdjacent) {
+                                canTarget = false;
+                            }
+                        }
+
+                        if (canTarget) {
+                            const attackAction = { unitId: unitData.id, fromR: startR, fromC: startC, row: tr, col: tc, type: 'attack', targetId: targetUnitOnTile.id };
+                            possibleActions.push(attackAction);
+                            if (updateGlobalHighlights) gameState.highlightedMoves.push(attackAction);
+                        }
                     }
                 }
             }
         }
     }
 
-    // Lógica para calcular acciones de curación para el Sanador.
-    if (unitData.type === 'SANADOR') {
-        const { healRange, healAmount } = UNIT_TYPES[unitData.type];
-        if (healRange > 0 && healAmount > 0) { // Check if unit can heal
-            // Comprueba las casillas adyacentes (según healRange) para unidades aliadas heridas.
-            for (let ro = -healRange; ro <= healRange; ro++) {
-                for (let co = -healRange; co <= healRange; co++) {
-                    if (Math.abs(ro) + Math.abs(co) > healRange || (ro === 0 && co === 0)) continue; // Check Manhattan distance and ignore self tile
-
+    // Heal Calculation (existing logic, ensure it's not affected adversely)
+    if (unitData.type === 'SANADOR') { // Assuming UNIT_TYPES.SANADOR exists
+        const healAbility = UNIT_TYPES.SANADOR; // Or unitFullType if SANADOR details are there
+        if (healAbility && healAbility.healRange > 0 && healAbility.healAmount > 0) {
+            for (let ro = -healAbility.healRange; ro <= healAbility.healRange; ro++) {
+                for (let co = -healAbility.healRange; co <= healAbility.healRange; co++) {
+                    if (Math.abs(ro) + Math.abs(co) > healAbility.healRange || (ro === 0 && co === 0)) continue;
                     const tr = startR + ro;
                     const tc = startC + co;
-
                     if (tr >= 0 && tr < BOARD_ROWS && tc >= 0 && tc < BOARD_COLS) {
-                        const targetUnitData = gameState.board[tr] ? gameState.board[tr][tc] : null;
-                        if (targetUnitData &&
-                            targetUnitData.player === unitData.player &&
-                            targetUnitData.id !== unitData.id &&
-                            targetUnitData.hp < targetUnitData.maxHp) {
-
+                        const targetUnitDataOnTile = gameState.board[tr] ? gameState.board[tr][tc] : null;
+                        if (targetUnitDataOnTile &&
+                            targetUnitDataOnTile.player === unitData.player &&
+                            targetUnitDataOnTile.id !== unitData.id &&
+                            targetUnitDataOnTile.hp < targetUnitDataOnTile.maxHp) {
                             const healAction = {
                                 unitId: unitData.id,
                                 fromR: startR,
@@ -162,13 +226,11 @@ export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, upd
                                 row: tr,
                                 col: tc,
                                 type: 'heal',
-                                targetId: targetUnitData.id,
-                                healAmount: healAmount // Store heal amount for action
+                                targetId: targetUnitDataOnTile.id,
+                                healAmount: healAbility.healAmount
                             };
                             possibleActions.push(healAction);
-                            if (updateGlobalHighlights) {
-                                gameState.highlightedMoves.push(healAction);
-                            }
+                            if (updateGlobalHighlights) gameState.highlightedMoves.push(healAction);
                         }
                     }
                 }

@@ -1,16 +1,22 @@
 // gameState will be passed as an argument to functions needing it from main.js
-import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
+import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE, RIVER_START_ROW, RIVER_END_ROW, BRIDGE_COL_1, BRIDGE_COL_2 } from './constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
 import { playSound } from './sound.js';
 import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement, surrenderBtn } from './ui.js';
 import { aiTakeTurn } from './ai.js';
 import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
-import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
+import { getTileType, createUnitData, generateTerrainFeatures, TILE_TYPE_MOUNTAIN, TILE_TYPE_FOREST, TILE_TYPE_SWAMP, TILE_TYPE_BRIDGE, TILE_TYPE_PRAIRIE } from './boardUtils.js'; // Updated imports
+import { updateVisibility } from './visibility.js';
+import { drawPrairieTile, drawMountainTile, drawForestTile, drawSwampTile, drawRiverTile } from './graphics.js'; // Import terrain drawing functions
 
 export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     gameState.board = Array(BOARD_ROWS).fill(null).map(() => Array(BOARD_COLS).fill(null));
     gameState.units = {};
     gameState.riverCanvases = [];
+
+    // Generate terrain features
+    const features = generateTerrainFeatures(BOARD_ROWS, BOARD_COLS, [], BOARD_ROWS - 2, 1, RIVER_START_ROW, RIVER_END_ROW, BRIDGE_COL_1, BRIDGE_COL_2);
+    gameState.terrainFeatures = features;
 
     // 1. Clear gameBoardElement first. This removes unitLayer if it was a child.
     if (gameBoardElement) gameBoardElement.innerHTML = '';
@@ -41,19 +47,60 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const tile = document.createElement('div');
-            const tileType = getTileType(r, c); // From boardUtils.js
-            tile.classList.add('tile', tileType);
+            // Pass terrainFeatures to getTileType
+            const tileType = getTileType(r, c, gameState.terrainFeatures);
+            tile.className = 'tile ' + tileType; // Use className to reset and apply specific type
             tile.dataset.row = r;
             tile.dataset.col = c;
-            if (tileType === 'river') {
-                const canvas = document.createElement('canvas');
-                canvas.width = TILE_SIZE; canvas.height = TILE_SIZE;
-                canvas.classList.add('river-canvas');
-                tile.appendChild(canvas);
-                gameState.riverCanvases.push(canvas.getContext('2d'));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = TILE_SIZE;
+            canvas.height = TILE_SIZE;
+            const tileCtx = canvas.getContext('2d');
+
+            switch (tileType) {
+                case 'river':
+                    drawRiverTile(tileCtx, TILE_SIZE, TILE_SIZE, gameState.riverAnimationTime || 0); // Pass animation time
+                    canvas.classList.add('river-canvas'); // Keep for animation updates
+                    gameState.riverCanvases.push(tileCtx);
+                    break;
+                case TILE_TYPE_MOUNTAIN:
+                    drawMountainTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_FOREST:
+                    drawForestTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_SWAMP:
+                    drawSwampTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_PRAIRIE:
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case 'bridge':
+                    // Style bridge directly or create a drawBridgeTile function
+                    tileCtx.fillStyle = '#D2B48C'; // Tan color for bridge
+                    tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                    tileCtx.strokeStyle = '#8B4513'; // Darker brown for wood grain/outline
+                    tileCtx.lineWidth = 2;
+                    for (let i = 0; i < TILE_SIZE; i += 10) { // Wood planks
+                        tileCtx.moveTo(i, 0); tileCtx.lineTo(i, TILE_SIZE);
+                        tileCtx.moveTo(0, i); tileCtx.lineTo(TILE_SIZE, i);
+                    }
+                    tileCtx.stroke();
+                    break;
+                case 'player1-spawn':
+                case 'player2-spawn':
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE); // Spawn areas are on prairie
+                    // Optionally add a visual marker for spawn areas if desired (e.g. slightly different color prairie)
+                    // tileCtx.fillStyle = 'rgba(0,0,255,0.1)'; tileCtx.fillRect(0,0,TILE_SIZE,TILE_SIZE); // Example marker
+                    break;
+                default:
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE); // Default to prairie
+                    break;
             }
+            tile.appendChild(canvas);
             tile.addEventListener('click', () => onTileClickCallback(r, c));
-            if(gameBoardElement) gameBoardElement.appendChild(tile);
+            if (gameBoardElement) gameBoardElement.appendChild(tile);
         }
     }
 
@@ -82,6 +129,34 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     placeUnit(createUnitData('SANADOR', 2, 4), 1, Math.floor(BOARD_COLS / 2) - 2); // New ID 4
     placeUnit(createUnitData('UNIDAD_VOLADORA', 2, 5), 1, Math.floor(BOARD_COLS / 2) + 2); // New ID 5
 
+    // Store base locations
+    let p1BaseUnit = null;
+    let p2BaseUnit = null;
+    for (const unitId in gameState.units) {
+        const unitElement = gameState.units[unitId];
+        const unitData = unitElement.__unitData; // Access the unit data stored on the element
+        if (unitData) {
+            if (unitData.type === 'BASE' && unitData.player === 1) {
+                p1BaseUnit = unitData;
+            } else if (unitData.type === 'BASE' && unitData.player === 2) {
+                p2BaseUnit = unitData;
+            }
+        }
+    }
+
+    if (p1BaseUnit) {
+        gameState.player1Base = { row: p1BaseUnit.row, col: p1BaseUnit.col, id: p1BaseUnit.id };
+    } else {
+        console.error("Player 1 Base not found after placement!");
+        gameState.player1Base = { row: -1, col: -1, id: null }; // Fallback
+    }
+    if (p2BaseUnit) {
+        gameState.player2Base = { row: p2BaseUnit.row, col: p2BaseUnit.col, id: p2BaseUnit.id };
+    } else {
+        console.error("Player 2 Base not found after placement!");
+        gameState.player2Base = { row: -1, col: -1, id: null }; // Fallback
+    }
+
     gameState.currentPlayer = 1;
     gameState.localPlayerNumber = 1;
     gameState.selectedUnit = null;
@@ -101,6 +176,9 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     }
 
     addLogEntry(gameState, "Nueva partida " + (gameState.gameMode || 'Local') + " iniciada.", "system");
+
+    updateVisibility(gameState); // Initial visibility calculation
+
     renderUnitRosterLocal(gameState);
      if (gameState.gameMode === 'vsAI' && gameState.currentPlayer === gameState.aiPlayerNumber) {
         if(aiTurnIndicator) aiTurnIndicator.style.display = 'block';
@@ -147,9 +225,27 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
     attackerElement.style.transform=originalAttackerTransform;
     await new Promise(r=>setTimeout(r,150));
 
-    targetData.hp -= attackerData.attack;
-    addLogEntry(gameState, `${UNIT_TYPES[targetData.type].name} (J${targetData.player}) recibe ${attackerData.attack} daño. PV: ${Math.max(0,targetData.hp)}.`, 'damage');
-    playSound('damage', targetData.hp<=0?'A2':'A3');
+    // Shield and Damage Calculation
+    const defenderTileType = getTileType(targetData.row, targetData.col, gameState.terrainFeatures);
+    const baseShield = UNIT_TYPES[targetData.type].shield !== undefined ? UNIT_TYPES[targetData.type].shield : 0;
+    let effectiveShield = baseShield;
+
+    if (defenderTileType === TILE_TYPE_MOUNTAIN) {
+        effectiveShield += 2;
+    } else if (defenderTileType === TILE_TYPE_FOREST) {
+        effectiveShield += 2;
+    } else if (defenderTileType === TILE_TYPE_BRIDGE) { // Assuming TILE_TYPE_BRIDGE is exported from boardUtils
+        effectiveShield -= 1;
+    } else if (defenderTileType === TILE_TYPE_SWAMP) {
+        effectiveShield -= 1;
+    }
+    effectiveShield = Math.max(0, effectiveShield); // Ensure shield doesn't go below 0
+
+    const damage = Math.max(0, attackerData.attack - effectiveShield);
+    targetData.hp -= damage;
+
+    addLogEntry(gameState, `${UNIT_TYPES[targetData.type].name} (J${targetData.player}) recibe ${damage} daño (escudo: ${effectiveShield}). PV: ${Math.max(0,targetData.hp)}.`, 'damage');
+    playSound('damage', targetData.hp<=0 ? 'A2' : 'A3');
     if (targetElement) {
         targetElement.classList.add('unit-damaged');
         updateUnitHPDisplay(gameState, targetData);

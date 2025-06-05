@@ -231,4 +231,109 @@ function animateRiver(gameState) {
     // No need to return riverAnimationTime as it's modified on gameState directly
 }
 
-export { unitDrawFunctions, drawPixel, drawRiverTile, animateRiver };
+// --- Terrain Tile Drawing Functions ---
+
+export function drawPrairieTile(ctx, tileWidth, tileHeight) {
+    ctx.fillStyle = '#A8C256'; // A lush, slightly desaturated green
+    ctx.fillRect(0, 0, tileWidth, tileHeight);
+
+    // Optional: Add some subtle texture or variation
+    ctx.fillStyle = 'rgba(0,0,0,0.03)';
+    for (let i = 0; i < 10; i++) {
+        ctx.fillRect(Math.random() * tileWidth, Math.random() * tileHeight, 2, 2);
+    }
+}
+
+export function drawMountainTile(ctx, tileWidth, tileHeight) {
+    // Base color (can be prairie or a darker earth tone if mountain is on it)
+    ctx.fillStyle = '#A8C256'; // Prairie base, assuming mountains rise from it
+    ctx.fillRect(0, 0, tileWidth, tileHeight);
+
+    const pSize = Math.floor(tileWidth / PIXEL_GRID_SIZE); // Assuming PIXEL_GRID_SIZE is 16
+    const artOffsetX = (tileWidth - PIXEL_GRID_SIZE * pSize) / 2;
+    const artOffsetY = (tileHeight - PIXEL_GRID_SIZE * pSize) / 2;
+
+    // Mountain Body
+    const mountainBaseColor = '#8B8989'; // Main rock color
+    const mountainMidColor = '#A9A9A9';  // Slightly lighter rock
+    const mountainHighlightColor = '#DCDCDC'; // Lightest rock/snow
+    const snowColor = '#FFFFFF';
+
+    // Simplified blocky mountain
+    // Base layer
+    for (let y = 8; y < 15; y++) for (let x = 3; x < 13; x++) drawPixel(ctx, x, y, mountainBaseColor, pSize, artOffsetX, artOffsetY);
+
+    // Mid layer
+    for (let y = 5; y < 8; y++) for (let x = 5; x < 11; x++) drawPixel(ctx, x, y, mountainMidColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 4, 7, mountainMidColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 11, 7, mountainMidColor, pSize, artOffsetX, artOffsetY);
+
+    // Highlight/Snow cap
+    for (let y = 2; y < 5; y++) for (let x = 6; x < 10; x++) drawPixel(ctx, x, y, mountainHighlightColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 7, 1, snowColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 8, 1, snowColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 6, 2, snowColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 9, 2, snowColor, pSize, artOffsetX, artOffsetY);
+}
+
+
+export function drawForestTile(ctx, tileWidth, tileHeight) {
+    // Base color (prairie, assuming forest grows on it)
+    ctx.fillStyle = '#A8C256';
+    ctx.fillRect(0, 0, tileWidth, tileHeight);
+
+    const pSize = Math.floor(tileWidth / PIXEL_GRID_SIZE);
+    const artOffsetX = (tileWidth - PIXEL_GRID_SIZE * pSize) / 2;
+    const artOffsetY = (tileHeight - PIXEL_GRID_SIZE * pSize) / 2;
+
+    const trunkColor = '#8B4513'; // SaddleBrown
+    const leavesDarkColor = '#006400'; // DarkGreen
+    const leavesLightColor = '#228B22'; // ForestGreen
+
+    // Tree 1 (slightly left)
+    for (let y = 8; y < 14; y++) drawPixel(ctx, 5, y, trunkColor, pSize, artOffsetX, artOffsetY); // Trunk
+    for (let y = 3; y < 9; y++) for (let x = 2; x < 8; x++) { // Canopy
+        if (Math.random() > 0.3) drawPixel(ctx, x, y, (x+y)%2===0 ? leavesDarkColor : leavesLightColor, pSize, artOffsetX, artOffsetY);
+    }
+    drawPixel(ctx, 4, 2, leavesLightColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 5, 2, leavesLightColor, pSize, artOffsetX, artOffsetY);
+
+
+    // Tree 2 (slightly right, smaller)
+    for (let y = 9; y < 14; y++) drawPixel(ctx, 10, y, trunkColor, pSize, artOffsetX, artOffsetY); // Trunk
+     for (let y = 5; y < 10; y++) for (let x = 8; x < 13; x++) { // Canopy
+        if (Math.random() > 0.3) drawPixel(ctx, x, y, (x+y)%2===0 ? leavesDarkColor : leavesLightColor, pSize, artOffsetX, artOffsetY);
+    }
+    drawPixel(ctx, 9, 4, leavesDarkColor, pSize, artOffsetX, artOffsetY);
+    drawPixel(ctx, 10, 4, leavesDarkColor, pSize, artOffsetX, artOffsetY);
+}
+
+export function drawSwampTile(ctx, tileWidth, tileHeight) {
+    ctx.fillStyle = '#556B2F'; // DarkOliveGreen - base murky water
+    ctx.fillRect(0, 0, tileWidth, tileHeight);
+
+    // Patches of different murky colors
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; // Darker patches
+    ctx.fillRect(tileWidth*0.1, tileHeight*0.1, tileWidth*0.5, tileHeight*0.3);
+    ctx.fillRect(tileWidth*0.5, tileHeight*0.6, tileWidth*0.4, tileHeight*0.3);
+    ctx.fillRect(tileWidth*0.2, tileHeight*0.5, tileWidth*0.6, tileHeight*0.2);
+
+    ctx.fillStyle = 'rgba(107, 142, 35, 0.3)'; // OliveDrab, slightly lighter patches
+    ctx.fillRect(tileWidth*0.6, tileHeight*0.2, tileWidth*0.3, tileHeight*0.4);
+    ctx.fillRect(tileWidth*0.1, tileHeight*0.7, tileWidth*0.4, tileHeight*0.2);
+
+    // Optional: a few "reeds" or "bubbles" using drawPixel if PIXEL_GRID_SIZE and drawPixel are available
+    const pSize = Math.floor(tileWidth / PIXEL_GRID_SIZE);
+    const artOffsetX = (tileWidth - PIXEL_GRID_SIZE * pSize) / 2;
+    const artOffsetY = (tileHeight - PIXEL_GRID_SIZE * pSize) / 2;
+    if(pSize > 0){ // only if pixel size is valid
+        drawPixel(ctx, 5,5, '#6B8E23', pSize, artOffsetX, artOffsetY); // Olive
+        drawPixel(ctx, 6,5, '#6B8E23', pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 10,10, '#6B8E23', pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 11,10, '#6B8E23', pSize, artOffsetX, artOffsetY);
+        drawPixel(ctx, 7,12, 'rgba(0,0,0,0.2)', pSize, artOffsetX, artOffsetY); // Darker bubble
+    }
+}
+
+
+export { unitDrawFunctions, drawPixel, drawRiverTile, animateRiver, drawPrairieTile, drawMountainTile, drawForestTile, drawSwampTile };

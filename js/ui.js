@@ -1,7 +1,8 @@
-import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE } from './constants.js';
+import { UNIT_TYPES, TILE_SIZE, UNIT_CANVAS_SIZE, BOARD_ROWS, BOARD_COLS } from './constants.js';
 import { playSound } from './sound.js';
 import { unitDrawFunctions } from './graphics.js';
 import { tutorialHTMLContent } from './tutorial_content.js'; // New
+import { getTileType, TILE_TYPE_FOREST } from './boardUtils.js'; // Import TILE_TYPE_FOREST and getTileType
 
 // DOM Element References
 export const authLoadingScreen = document.getElementById('authLoadingScreen');
@@ -335,48 +336,124 @@ export function displayTutorial() {
 }
 
 export function renderHighlightsAndInfo(gameState) {
-    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack, .tile.possible-heal')
-        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack', 'possible-heal'));
+    // Clear existing visual highlights first
+    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack, .tile.possible-heal, .tile.fog-hidden, .tile.fog-explored')
+        .forEach(el => {
+            el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack', 'possible-heal', 'fog-hidden', 'fog-explored');
+            el.style.backgroundColor = ''; // Reset any direct background color changes
+        });
     document.querySelectorAll('.unit.pulse-target').forEach(el => el.classList.remove('pulse-target'));
 
-    if (gameState.selectedUnit && gameState.selectedUnit.data) { // Ensure selectedUnit and its data exist
+    const visibilityGrid = gameState.visibilityGrid;
+    const currentPlayer = gameState.gameMode === 'online' ? gameState.localPlayerNumber : gameState.currentPlayer;
+
+    // Unit Rendering based on Visibility & Forest Stealth Rule
+    if (gameState.units) {
+        Object.values(gameState.units).forEach(unitElement => {
+            if (!unitElement || !unitElement.__unitData) return;
+            const unitData = unitElement.__unitData;
+            let isVisibleTile = false;
+            if (visibilityGrid && visibilityGrid[unitData.row] && visibilityGrid[unitData.row][unitData.col] !== undefined) {
+                isVisibleTile = visibilityGrid[unitData.row][unitData.col] === 2;
+            }
+
+            const isPlayerBase = unitData.type === 'BASE';
+            let shouldDrawUnit = isVisibleTile || isPlayerBase;
+
+            if (unitData.player !== currentPlayer && isVisibleTile) {
+                const unitTileType = getTileType(unitData.row, unitData.col, gameState.terrainFeatures);
+                if (unitTileType === TILE_TYPE_FOREST) {
+                    let isAdjacentToForestEnemy = false;
+                    for (let r = 0; r < BOARD_ROWS; r++) {
+                        for (let c = 0; c < BOARD_COLS; c++) {
+                            const friendlyUnit = gameState.board[r] ? gameState.board[r][c] : null;
+                            if (friendlyUnit && friendlyUnit.player === currentPlayer) {
+                                if (Math.abs(friendlyUnit.row - unitData.row) + Math.abs(friendlyUnit.col - unitData.col) === 1) {
+                                    isAdjacentToForestEnemy = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isAdjacentToForestEnemy) break;
+                    }
+                    if (!isAdjacentToForestEnemy) {
+                        shouldDrawUnit = false;
+                    }
+                }
+            }
+
+            if (shouldDrawUnit) {
+                unitElement.style.display = 'block';
+            } else {
+                unitElement.style.display = 'none';
+            }
+        });
+    }
+
+    // Selected unit and action highlights (only on visible tiles)
+    if (gameState.selectedUnit && gameState.selectedUnit.data) {
         const unitData = gameState.selectedUnit.data;
-        if(gameBoardElement) {
-            const tileEl = gameBoardElement.querySelector(`.tile[data-row='${unitData.row}'][data-col='${unitData.col}']`);
-            if (tileEl) tileEl.classList.add('selected-unit-tile');
+        if (visibilityGrid && visibilityGrid[unitData.row] && visibilityGrid[unitData.row][unitData.col] === 2) {
+            if (gameBoardElement) {
+                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${unitData.row}'][data-col='${unitData.col}']`);
+                if (tileEl) tileEl.classList.add('selected-unit-tile');
+            }
         }
     }
 
-    if (gameState.highlightedMoves) { // Ensure highlightedMoves exists
+    if (gameState.highlightedMoves) {
         gameState.highlightedMoves.forEach(move => {
-            if(gameBoardElement) {
-                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${move.row}'][data-col='${move.col}']`);
-                if (tileEl) {
-                    if (move.type === 'move') {
-                        tileEl.classList.add('possible-move');
-                    } else if (move.type === 'attack') {
-                        tileEl.classList.add('possible-attack');
-                        // Pulse target logic for attack remains here
-                        if (gameState.board[move.row] && gameState.board[move.row][move.col]) {
-                            const targetUnitData = gameState.board[move.row][move.col];
-                            if(targetUnitData && gameState.units[targetUnitData.id]) {
-                                gameState.units[targetUnitData.id].classList.add('pulse-target');
+            if (visibilityGrid && visibilityGrid[move.row] && visibilityGrid[move.row][move.col] === 2) {
+                if (gameBoardElement) {
+                    const tileEl = gameBoardElement.querySelector(`.tile[data-row='${move.row}'][data-col='${move.col}']`);
+                    if (tileEl) {
+                        if (move.type === 'move') tileEl.classList.add('possible-move');
+                        else if (move.type === 'attack') {
+                            tileEl.classList.add('possible-attack');
+                            if (gameState.board[move.row] && gameState.board[move.row][move.col]) {
+                                const targetUnitData = gameState.board[move.row][move.col];
+                                if (targetUnitData && gameState.units[targetUnitData.id] && gameState.units[targetUnitData.id].style.display !== 'none') {
+                                    gameState.units[targetUnitData.id].classList.add('pulse-target');
+                                }
                             }
-                        }
-                    } else if (move.type === 'heal') {
-                        tileEl.classList.add('possible-heal'); // Resalta la casilla como un posible objetivo de curación.
-                        // Optional: Pulse target logic for heal (e.g., make the heal target pulse green)
-                        if (gameState.board[move.row] && gameState.board[move.row][move.col]) {
-                            const targetUnitData = gameState.board[move.row][move.col];
-                            if(targetUnitData && gameState.units[targetUnitData.id]) {
-                                // Example: gameState.units[targetUnitData.id].classList.add('pulse-heal-target');
-                            }
-                        }
+                        } else if (move.type === 'heal') tileEl.classList.add('possible-heal');
                     }
                 }
             }
         });
     }
+
+    // Fog of War Overlay
+    if (visibilityGrid && gameBoardElement) {
+        for (let r = 0; r < BOARD_ROWS; r++) {
+            for (let c = 0; c < BOARD_COLS; c++) {
+                const tileEl = gameBoardElement.querySelector(`.tile[data-row='${r}'][data-col='${c}']`);
+                if (tileEl) {
+                    const status = visibilityGrid[r] ? visibilityGrid[r][c] : 0;
+                    if (status === 0) { // Hidden
+                        // tileEl.classList.add('fog-hidden'); // CSS class would be better
+                        tileEl.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                        // Ensure no other highlights are showing on hidden tiles
+                        tileEl.classList.remove('possible-move', 'possible-attack', 'possible-heal', 'selected-unit-tile');
+                    } else if (status === 1) { // Explored (not used yet, but could be for grayed out)
+                        // tileEl.classList.add('fog-explored');
+                        // tileEl.style.backgroundColor = 'rgba(0, 0, 0, 0.3)'; // Example for explored
+                    } else { // Visible (status === 2)
+                        // If it's visible and not highlighted for action, ensure its background is clear
+                        // The terrain drawing functions already set the base background.
+                        // If a highlight class for move/attack is present, it will override this.
+                        if (!tileEl.classList.contains('possible-move') &&
+                            !tileEl.classList.contains('possible-attack') &&
+                            !tileEl.classList.contains('possible-heal') &&
+                            !tileEl.classList.contains('selected-unit-tile')) {
+                            tileEl.style.backgroundColor = ''; // Let canvas show through or default CSS
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     updateInfoDisplay(gameState);
     updateSelectedUnitInfoPanel(gameState);
 }

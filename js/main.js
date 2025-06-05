@@ -37,7 +37,9 @@ let gameState = {
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
-    unsubscribeGameListener: null
+    unsubscribeGameListener: null,
+    terrainFeatures: [],
+    visibilityGrid: [],
 };
 
 async function handleFirebaseAuthStateChanged(user) {

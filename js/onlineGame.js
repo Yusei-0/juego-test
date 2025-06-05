@@ -6,8 +6,8 @@ import {
     renderUnitRosterOnline, showScreen, showEndGameModal, gameBoardElement, unitLayerElement,
     waitingGameIdDisplay, waitingStatusText, playerListDiv, gameIdInfoDisplay, createUnitElement, surrenderBtn
 } from './ui.js';
-import { getTileType, createUnitData } from './boardUtils.js';
-import { unitDrawFunctions } from './graphics.js';
+import { getTileType, createUnitData, TILE_TYPE_MOUNTAIN, TILE_TYPE_FOREST, TILE_TYPE_SWAMP, TILE_TYPE_BRIDGE, TILE_TYPE_PRAIRIE } from './boardUtils.js'; // Added terrain type constants
+import { unitDrawFunctions, drawPrairieTile, drawMountainTile, drawForestTile, drawSwampTile, drawRiverTile } from './graphics.js'; // Import terrain drawing functions
 import { onTileClick } from './gameActions.js'; // Assuming onTileClick is correctly set up in main.js to be passed
 
 
@@ -37,19 +37,53 @@ export async function performAttackOnline(gameState, attackerData, targetData) {
     if (!gameState.currentGameId || !firestoreDB || !targetData) return;
     gameState.isAnimating = true;
     const gameRef = doc(firestoreDB, `${FIRESTORE_GAME_PATH_PREFIX}/${gameState.currentGameId}`);
-    let attackerName=UNIT_TYPES[attackerData.type].name; let targetName=UNIT_TYPES[targetData.type].name; let damageDealt=UNIT_TYPES[attackerData.type].attack;
+    let attackerName = UNIT_TYPES[attackerData.type].name;
+    let targetName = UNIT_TYPES[targetData.type].name;
+    // Damage calculation will happen inside the transaction
     let logEntries = [];
-    logEntries.unshift({text:`Unidad ${attackerName} (J${attackerData.player}) ataca a ${targetName} (J${targetData.player}).`,type:'attack',timestamp:new Date().toISOString()});
+    logEntries.unshift({ text: `Unidad ${attackerName} (J${attackerData.player}) ataca a ${targetName} (J${targetData.player}).`, type: 'attack', timestamp: new Date().toISOString() });
+
     try {
         await runTransaction(firestoreDB, async (transaction) => {
-            const gameDoc = await transaction.get(gameRef); if(!gameDoc.exists()) throw "Game DNE!";
-            const gd = gameDoc.data(); const uU = {...gd.units}; const fA = uU[attackerData.id]; const fT = uU[targetData.id];
-            if(!fA || !fT || fA.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid attack.";
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "Game DNE!";
+            const gd = gameDoc.data();
+            const uU = { ...gd.units }; // unitsUpdate
+            const fA = uU[attackerData.id]; // firebaseAttacker
+            const fT = uU[targetData.id];   // firebaseTarget
+
+            if (!fA || !fT || fA.player !== gameState.localPlayerNumber || gd.currentPlayerId !== gameState.localPlayerId) throw "Invalid attack.";
+
+            // Shield and Damage Calculation (client-authoritative for now)
+            // For online games, terrainFeatures might need to be part of gameData in Firestore if not already.
+            // Assuming gameState.terrainFeatures is populated and relevant for the current online game.
+            // If terrainFeatures can change or are specific to a game instance, they MUST be loaded from gameDoc.data().
+            // For this implementation, we'll assume gameState.terrainFeatures is available and correct.
+            // A more robust solution would fetch terrain from gd.terrainFeatures if it existed.
+            const defenderTileType = getTileType(fT.row, fT.col, gameState.terrainFeatures); // Use fT.row, fT.col
+            const baseShield = UNIT_TYPES[fT.type].shield !== undefined ? UNIT_TYPES[fT.type].shield : 0;
+            let effectiveShield = baseShield;
+
+            if (defenderTileType === TILE_TYPE_MOUNTAIN) {
+                effectiveShield += 2;
+            } else if (defenderTileType === TILE_TYPE_FOREST) {
+                effectiveShield += 2;
+            } else if (defenderTileType === TILE_TYPE_BRIDGE) {
+                effectiveShield -= 1;
+            } else if (defenderTileType === TILE_TYPE_SWAMP) {
+                effectiveShield -= 1;
+            }
+            effectiveShield = Math.max(0, effectiveShield);
+
+            const damageDealt = Math.max(0, fA.attack - effectiveShield); // Use fA.attack (attacker's attack from Firestore)
             fT.hp -= damageDealt;
-            logEntries.unshift({text:`${targetName} (J${fT.player}) recibe ${damageDealt} daño. PV: ${Math.max(0,fT.hp)}.`,type:'damage',timestamp:new Date().toISOString()});
-            let nS=gd.status; let wR=gd.winnerReason||"";
-            if(fT.hp<=0){
-                logEntries.unshift({text:`¡${targetName} (J${fT.player}) destruido!`,type:'death',timestamp:new Date().toISOString()});
+
+            logEntries.unshift({ text: `${targetName} (J${fT.player}) recibe ${damageDealt} daño (escudo: ${effectiveShield}). PV: ${Math.max(0, fT.hp)}.`, type: 'damage', timestamp: new Date().toISOString() });
+
+            let nS = gd.status; // newStatus
+            let wR = gd.winnerReason || ""; // winnerReason
+            if (fT.hp <= 0) {
+                logEntries.unshift({ text: `¡${targetName} (J${fT.player}) destruido!`, type: 'death', timestamp: new Date().toISOString() });
                 delete uU[targetData.id];
                 if(fT.type==='BASE'){nS=fA.player===1?'player1_wins':'player2_wins';wR="Base Destruida";}
             }
@@ -240,21 +274,57 @@ export function initializeBoardAndUnitsFirebase(gameState, onTileClickCallback) 
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const tile = document.createElement('div');
-            const tileType = getTileType(r, c);
-            tile.classList.add('tile', tileType);
-            tile.dataset.row = r; tile.dataset.col = c;
-            if (tileType === 'river') {
-                const canvas = document.createElement('canvas');
-                canvas.width = TILE_SIZE; canvas.height = TILE_SIZE;
-                canvas.classList.add('river-canvas');
-                tile.appendChild(canvas);
-                gameState.riverCanvases.push(canvas.getContext('2d'));
+            // Attempt to use gameState.terrainFeatures; this needs to be properly synced for online games.
+            const tileType = getTileType(r, c, gameState.terrainFeatures || []);
+            tile.className = 'tile ' + tileType;
+            tile.dataset.row = r;
+            tile.dataset.col = c;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = TILE_SIZE;
+            canvas.height = TILE_SIZE;
+            const tileCtx = canvas.getContext('2d');
+
+            switch (tileType) {
+                case 'river':
+                    drawRiverTile(tileCtx, TILE_SIZE, TILE_SIZE, gameState.riverAnimationTime || 0);
+                    canvas.classList.add('river-canvas');
+                    gameState.riverCanvases.push(tileCtx);
+                    break;
+                case TILE_TYPE_MOUNTAIN:
+                    drawMountainTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_FOREST:
+                    drawForestTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_SWAMP:
+                    drawSwampTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case TILE_TYPE_PRAIRIE:
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                case 'bridge':
+                    tileCtx.fillStyle = '#D2B48C'; tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                    tileCtx.strokeStyle = '#8B4513'; tileCtx.lineWidth = 2;
+                    for (let i = 0; i < TILE_SIZE; i += 10) { tileCtx.moveTo(i, 0); tileCtx.lineTo(i, TILE_SIZE); tileCtx.moveTo(0, i); tileCtx.lineTo(TILE_SIZE, i); }
+                    tileCtx.stroke();
+                    break;
+                case 'player1-spawn':
+                case 'player2-spawn':
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
+                default:
+                    drawPrairieTile(tileCtx, TILE_SIZE, TILE_SIZE);
+                    break;
             }
-            tile.addEventListener('click', () => onTileClickCallback(r,c));
+            tile.appendChild(canvas);
+            tile.addEventListener('click', () => onTileClickCallback(r, c));
             if(gameBoardElement) gameBoardElement.appendChild(tile);
         }
     }
     addLogEntry(gameState, "Tablero inicializado para partida online.", "system");
+    // Note: For terrain features to be consistent in online, they must be generated by host and stored in Firestore.
+    // updateBoardFromFirestore should then also apply these specific terrain tile graphics if they differ from default.
 }
 
 export function updateBoardFromFirestore(gameState, firebaseGameData) {
