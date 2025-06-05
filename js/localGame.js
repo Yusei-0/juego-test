@@ -2,7 +2,7 @@
 import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
 import { playSound } from './sound.js';
-import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement, surrenderBtn } from './ui.js';
+import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement, surrenderBtn, showNotification, updateUnitHPDisplay } from './ui.js'; // Added showNotification, updateUnitHPDisplay
 import { aiTakeTurn } from './ai.js';
 import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
 import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
@@ -63,32 +63,24 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
         createUnitElement(gameState, unitData); // From ui.js
     };
 
-    // Player 1 Units (IDs 0-4)
+    // Player 1 Units - Start with only the Base
     placeUnit(createUnitData('BASE', 1, 0), BOARD_ROWS - 1, Math.floor(BOARD_COLS / 2));
-    placeUnit(createUnitData('GUERRERO', 1, 1), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 1, 2), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 1);
-    placeUnit(createUnitData('GIGANTE', 1, 3), BOARD_ROWS - 3, Math.floor(BOARD_COLS / 2));
-    // Coloca unidades adicionales (Sanador y Unidad Voladora) para el Jugador 1
-    placeUnit(createUnitData('SANADOR', 1, 4), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) - 2); // New ID 4
-    placeUnit(createUnitData('UNIDAD_VOLADORA', 1, 5), BOARD_ROWS - 2, Math.floor(BOARD_COLS / 2) + 2); // New ID 5
 
-    // Player 2 Units (IDs 0-4, unique per player but can overlap with P1's IDs as they are prefixed p1- p2-)
-    // For consistency with previous structure, using 0,1,2,3,4,5 as IDs
+    // Player 2 Units - Start with only the Base
     placeUnit(createUnitData('BASE', 2, 0), 0, Math.floor(BOARD_COLS / 2));
-    placeUnit(createUnitData('GUERRERO', 2, 1), 1, Math.floor(BOARD_COLS / 2) - 1);
-    placeUnit(createUnitData('ARQUERO', 2, 2), 1, Math.floor(BOARD_COLS / 2) + 1);
-    placeUnit(createUnitData('GIGANTE', 2, 3), 2, Math.floor(BOARD_COLS / 2));
-    // Coloca unidades adicionales (Sanador y Unidad Voladora) para el Jugador 2
-    placeUnit(createUnitData('SANADOR', 2, 4), 1, Math.floor(BOARD_COLS / 2) - 2); // New ID 4
-    placeUnit(createUnitData('UNIDAD_VOLADORA', 2, 5), 1, Math.floor(BOARD_COLS / 2) + 2); // New ID 5
 
     gameState.currentPlayer = 1;
+    gameState.player1MagicPoints = 50;
+    gameState.player2MagicPoints = 50;
     gameState.localPlayerNumber = 1;
     gameState.selectedUnit = null;
     gameState.highlightedMoves = [];
     gameState.gameActive = true;
     gameState.isAnimating = false;
     gameState.gameLog = [];
+    gameState.isSummoning = false;
+    gameState.unitToSummonType = null;
+    gameState.nextSummonedUnitId = 100; // Initial ID for summoned units
 
     if (surrenderBtn) {
         // If a bound handler for this gameState already exists, remove it first
@@ -129,6 +121,8 @@ export async function moveUnitAndAnimateLocal(gameState, unitData, toR, toC) {
 }
 
 export async function attackUnitAndAnimateLocal(gameState, attackerData, targetData) {
+    const POINTS_PER_KILL = 10; // Points awarded for a kill
+
     if (!attackerData || !targetData || attackerData.player === targetData.player) {
         gameState.isAnimating = false; return;
     }
@@ -178,7 +172,16 @@ export async function attackUnitAndAnimateLocal(gameState, attackerData, targetD
         }
         gameState.board[targetData.row][targetData.col]=null;
         delete gameState.units[targetData.id];
+
+        // Award points for the kill
+        const attackerMagicPointsKey = attackerData.player === 1 ? 'player1MagicPoints' : 'player2MagicPoints';
+        gameState[attackerMagicPointsKey] += POINTS_PER_KILL;
+        addLogEntry(gameState, `Jugador ${attackerData.player} ganó ${POINTS_PER_KILL} puntos de magia por eliminar un ${UNIT_TYPES[targetData.type].name}.`, 'info');
+
+        // Update UI to reflect changes (roster and magic points)
         renderUnitRosterLocal(gameState);
+        renderHighlightsAndInfo(gameState); // This will call updateInfoDisplay which should show new magic points
+
         if(targetData.type==='BASE'){
             endGameLocal(gameState, attackerData.player,"Base Destruida");
             gameState.isAnimating=false; return;
@@ -230,9 +233,26 @@ export function canPlayerMakeAnyMoveLocal(gameState) {
 
 // Realiza la acción de curar a una unidad aliada.
 export async function performHealLocal(gameState, healerData, targetData, healAmount) {
+    const abilityCost = UNIT_TYPES.SANADOR.abilityCost;
+    const currentMagicPointsKey = gameState.currentPlayer === 1 ? 'player1MagicPoints' : 'player2MagicPoints';
+
+    if (gameState[currentMagicPointsKey] < abilityCost) {
+        showNotification("Habilidad Fallida", "No hay suficientes puntos de magia para curar.");
+        addLogEntry(gameState, `Jugador ${gameState.currentPlayer} intentó curar pero no tiene suficientes puntos de magia (${abilityCost} requeridos).`, 'error');
+        gameState.isAnimating = false; // Ensure animation state is reset
+        clearHighlightsAndSelection(gameState); // Clear selection and action highlights
+        renderHighlightsAndInfo(gameState); // Update UI
+        return; // Prevent healing and turn switch
+    }
+
+    // Deduct cost if sufficient points
+    gameState[currentMagicPointsKey] -= abilityCost;
+    addLogEntry(gameState, `Jugador ${gameState.currentPlayer} gastó ${abilityCost} puntos de magia para curar.`, 'info');
+
+    // Set isAnimating true after cost deduction and before async operations
     gameState.isAnimating = true;
-    clearHighlightsAndSelection(gameState);
-    renderHighlightsAndInfo(gameState);
+    clearHighlightsAndSelection(gameState); // Clear selection after action is confirmed
+    // renderHighlightsAndInfo will be called by switchTurnLocal, or explicitly if needed for magic points update sooner
 
     addLogEntry(gameState, `Unidad ${UNIT_TYPES[healerData.type].name} (J${healerData.player}) cura a ${UNIT_TYPES[targetData.type].name} (J${targetData.player}) por ${healAmount} PV.`, 'heal');
 
@@ -247,12 +267,16 @@ export async function performHealLocal(gameState, healerData, targetData, healAm
     const targetElement = gameState.units[targetData.id];
     if (targetElement) {
         targetElement.classList.add('unit-healed');
-        updateUnitHPDisplay(gameState, targetData);
-        renderUnitRosterLocal(gameState);
+        updateUnitHPDisplay(gameState, targetData); // Update HP display for selected unit if it's the target
+        renderUnitRosterLocal(gameState); // Update roster
 
         await new Promise(r => setTimeout(r, 300)); // Duration for the 'healed' effect
         if (targetElement) targetElement.classList.remove('unit-healed');
     }
+
+    // Explicitly call renderHighlightsAndInfo to update magic points display immediately
+    // This is important because switchTurnLocal also calls it, but we want the current player's magic points updated *before* the turn switches.
+    renderHighlightsAndInfo(gameState);
 
     gameState.isAnimating = false;
     if (gameState.gameActive) switchTurnLocal(gameState);
@@ -274,4 +298,51 @@ export function updateUnitHPDisplay(gameState, unitData) {
             unitHealthText.textContent = `${Math.max(0, unitData.hp)}/${unitData.maxHp}`;
         }
     }
+}
+
+export function summonUnitLocal(gameState, unitType, row, col) {
+    if (!UNIT_TYPES[unitType]) {
+        console.error(`LOCAL_GAME: Invalid unit type "${unitType}" for summoning.`);
+        addLogEntry(gameState, `Error: Intento de invocar tipo de unidad inválido: ${unitType}`, 'system');
+        return;
+    }
+    const unitDetails = UNIT_TYPES[unitType];
+    const currentMagicPointsKey = gameState.currentPlayer === 1 ? 'player1MagicPoints' : 'player2MagicPoints';
+
+    if (gameState[currentMagicPointsKey] < unitDetails.summonCost) {
+        console.error('LOCAL_GAME: Not enough magic points for summon (final check failed).');
+        addLogEntry(gameState, `Error: Puntos mágicos insuficientes para invocar ${unitDetails.name} (falló chequeo final).`, 'system');
+        // This case should ideally be prevented by UI disabling buttons,
+        // but as a safeguard, we don't proceed.
+        return;
+    }
+
+    // Deduct cost
+    gameState[currentMagicPointsKey] -= unitDetails.summonCost;
+
+    // Generate new unit ID
+    const newUnitId = 's' + gameState.nextSummonedUnitId++; // 's' for summoned, e.g., "s100", "s101"
+
+    // Create unit data
+    const newUnitData = createUnitData(unitType, gameState.currentPlayer, newUnitId);
+    newUnitData.row = row;
+    newUnitData.col = col;
+
+    // Place on board (logical state)
+    if (!gameState.board[row]) gameState.board[row] = []; // Should not happen if board is pre-initialized fully
+    gameState.board[row][col] = newUnitData;
+
+    // Create UI element and add to gameState.units
+    createUnitElement(gameState, newUnitData);
+    playSound('summon', 'A4'); // Example summon sound
+
+    addLogEntry(gameState, `Jugador ${gameState.currentPlayer} invocó a ${unitDetails.name} en (${row}, ${col}) por ${unitDetails.summonCost} puntos.`, 'summon');
+
+    // Update UI (magic points, roster, etc.)
+    // renderHighlightsAndInfo also calls updateInfoDisplay and updateSelectedUnitInfoPanel
+    renderHighlightsAndInfo(gameState);
+    renderUnitRosterLocal(gameState); // Explicitly update roster to show new unit count/HP
+
+    // Switch turn
+    switchTurnLocal(gameState);
 }

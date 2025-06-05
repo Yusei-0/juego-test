@@ -14,11 +14,12 @@ import {
     displayTutorial, // New
     backToMainMenuBtn_Tutorial, // New
     displayPatchNotes, // Added for patch notes
-    backToMainMenuBtn_PatchNotes // Added for patch notes back button
+    backToMainMenuBtn_PatchNotes, // Added for patch notes back button
+    initializeSummonUI // Added for summon UI initialization
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame, handleSurrenderOnline } from './onlineGame.js';
-import { onTileClick } from './gameActions.js';
+import * as gameActions from './gameActions.js'; // Import all game actions
 import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
 import { GameMenuComponent } from './components/GameMenu.js';
@@ -143,7 +144,8 @@ function startGame(mode, difficulty = null) {
 
     if (mode === 'local' || mode === 'vsAI') {
         // Pass gameState and the onTileClick function (bound with gameState)
-        initializeLocalBoardAndUnits(gameState, (r,c) => onTileClick(gameState, r, c));
+        initializeLocalBoardAndUnits(gameState, (r,c) => gameActions.onTileClick(gameState, r, c)); // Use gameActions.onTileClick
+        initializeSummonUI(gameState, gameActions); // Initialize Summon UI with gameState and gameActions
         renderHighlightsAndInfo(gameState);
         renderUnitRosterLocal(gameState);
     } else if (mode === 'online') {

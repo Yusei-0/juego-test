@@ -6,6 +6,7 @@ export class PlayerTurnDisplay extends ElementalComponent {
         <div>
             <p>Turno de: <span id="playerName">Jugador X</span></p>
             <p id="playerRole">Rol: ---</p>
+            <p>Puntos de Magia: <span id="magicPoints">--</span></p>
         </div>
         `;
     }
@@ -33,11 +34,15 @@ export class PlayerTurnDisplay extends ElementalComponent {
             margin-top: 0.2rem; /* Match original playerRoleDisplay */
             color: #a0aec0; /* Example color, similar to original */
         }
+        #magicPoints {
+            font-weight: bold;
+            color: #FFD700; /* Gold color for points */
+        }
         `;
     }
 
     static get observedAttributes() {
-        return ['player-name', 'player-role', 'player-number'];
+        return ['player-name', 'player-role', 'player-number', 'magic-points'];
     }
 
     constructor() {
@@ -51,6 +56,7 @@ export class PlayerTurnDisplay extends ElementalComponent {
         this._updatePlayerName(this.getAttribute('player-name') || 'Jugador X');
         this._updatePlayerRole(this.getAttribute('player-role') || 'Rol: ---');
         this._updatePlayerNumberClass(this.getAttribute('player-number'));
+        this._updateMagicPoints(this.getAttribute('magic-points') || '--');
     }
 
     onAttributeChanged(name, oldValue, newValue) {
@@ -66,6 +72,16 @@ export class PlayerTurnDisplay extends ElementalComponent {
             case 'player-number':
                 this._updatePlayerNumberClass(newValue);
                 break;
+            case 'magic-points':
+                this._updateMagicPoints(newValue);
+                break;
+        }
+    }
+
+    _updateMagicPoints(points) {
+        const magicPointsEl = this.$('#magicPoints');
+        if (magicPointsEl) {
+            magicPointsEl.textContent = points || '--';
         }
     }
 

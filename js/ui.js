@@ -3,6 +3,10 @@ import { playSound } from './sound.js';
 import { unitDrawFunctions } from './graphics.js';
 import { tutorialHTMLContent } from './tutorial_content.js'; // New
 
+// Module-level references for gameState and gameActions
+let currentGameStateRef = null;
+let gameActionsRef = null;
+
 // DOM Element References
 export const authLoadingScreen = document.getElementById('authLoadingScreen');
 export const mainMenuScreen = document.getElementById('mainMenuScreen');
@@ -55,6 +59,11 @@ export const notificationTitle = document.getElementById('notificationTitle');
 export const notificationMessageText = document.getElementById('notificationMessageText');
 export const notificationOkBtn = document.getElementById('notificationOkBtn');
 export const surrenderBtn = document.getElementById('surrenderBtn');
+export const summonUnitBtn = document.getElementById('summonUnitBtn');
+export const summonUnitModal = document.getElementById('summonUnitModal');
+export const closeSummonModal = document.getElementById('closeSummonModal');
+export const summonModalMagicPoints = document.getElementById('summonModalMagicPoints');
+export const summonUnitList = document.getElementById('summonUnitList');
 
 // Moved from localGame.js
 export function createUnitElement(gameState, unitData) {
@@ -133,9 +142,90 @@ export function showScreen(screenId) {
     if (surrenderBtn) {
         if (screenId === 'gameContainer') {
             surrenderBtn.style.display = 'block';
+            if (summonUnitBtn) summonUnitBtn.style.display = 'block'; // Show summon button too
         } else {
             surrenderBtn.style.display = 'none';
+            if (summonUnitBtn) summonUnitBtn.style.display = 'none'; // Hide summon button too
         }
+    }
+}
+
+export function showSummonUnitModal(gameState) {
+    if (!summonUnitModal || !summonModalMagicPoints || !summonUnitList) {
+        console.error("Summon modal elements not found for showing.");
+        return;
+    }
+
+    summonUnitModal.style.display = 'flex';
+    let currentMagicPoints = 0;
+    if (gameState.currentPlayer === 1 && gameState.player1MagicPoints !== undefined) {
+        currentMagicPoints = gameState.player1MagicPoints;
+    } else if (gameState.currentPlayer === 2 && gameState.player2MagicPoints !== undefined) {
+        currentMagicPoints = gameState.player2MagicPoints;
+    }
+    summonModalMagicPoints.textContent = currentMagicPoints;
+
+    summonUnitList.innerHTML = ''; // Clear previous options
+
+    Object.entries(UNIT_TYPES).forEach(([typeKey, unitDetails]) => {
+        if (typeKey === 'BASE') {
+            return; // Skip BASE unit
+        }
+
+        const unitOption = document.createElement('div');
+        unitOption.classList.add('summon-unit-option');
+
+        const infoSpan = document.createElement('span');
+        infoSpan.innerHTML = `${unitDetails.name} (Costo: ${unitDetails.summonCost})<br>PV: ${unitDetails.hp}, ATK: ${unitDetails.attack}, MOV: ${unitDetails.movement}, RNG: ${unitDetails.range}`;
+
+        const summonBtn = document.createElement('button');
+        summonBtn.textContent = 'Invocar'; // "Summon"
+        summonBtn.dataset.unitType = typeKey;
+
+        if (currentMagicPoints < unitDetails.summonCost) {
+            summonBtn.disabled = true;
+            summonBtn.title = "No tienes suficientes puntos mágicos.";
+        }
+
+        summonBtn.addEventListener('click', (event) => {
+            // Prevent the modal from closing if the click is on a disabled button,
+            // or if we want to keep it open for other reasons.
+            // event.stopPropagation();
+            handleAttemptSummon(typeKey);
+        });
+
+        unitOption.appendChild(infoSpan);
+        unitOption.appendChild(summonBtn);
+        summonUnitList.appendChild(unitOption);
+    });
+
+    if (summonUnitList.children.length === 0) {
+        summonUnitList.innerHTML = '<p><i>No hay unidades disponibles para invocar en este momento.</i></p>';
+    }
+}
+
+function handleAttemptSummon(unitType) {
+    if (gameActionsRef && typeof gameActionsRef.initiateSummonAction === 'function') {
+        gameActionsRef.initiateSummonAction(currentGameStateRef, unitType);
+        // hideSummonUnitModal is now called within initiateSummonAction in gameActions.js
+        // If it weren't, it would be called here: hideSummonUnitModal();
+    } else {
+        console.error('UI: gameActionsRef or initiateSummonAction is not set up. Cannot attempt summon.');
+        // Optionally, provide feedback to the user that the action cannot be performed.
+    }
+}
+
+export function initializeSummonUI(gameState, gameActions) {
+    currentGameStateRef = gameState;
+    gameActionsRef = gameActions;
+    console.log("Summon UI initialized with gameState and gameActions references.");
+}
+
+export function hideSummonUnitModal() {
+    if (summonUnitModal) {
+        summonUnitModal.style.display = 'none';
+    } else {
+        console.error("Summon modal not found for hiding.");
     }
 }
 
@@ -149,6 +239,7 @@ export function updateInfoDisplay(gameState) {
     let currentPlayerName = 'Jugador X'; // Default
     let playerRoleText = 'Rol: ---';    // Default
     let currentPlayerNumberString = '1'; // Default
+    let currentMagicPoints = '--';
 
     if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
         const gd = gameState.currentFirebaseGameData;
@@ -168,12 +259,30 @@ export function updateInfoDisplay(gameState) {
         } else { // Local multiplayer
             playerRoleText = `Turno Jugador ${gameState.currentPlayer}`;
         }
+        // Get magic points for local or vsAI game
+        currentMagicPoints = (gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints);
+        if (typeof currentMagicPoints === 'undefined' || currentMagicPoints === null) {
+            currentMagicPoints = '--'; // Handle undefined or null case
+        }
+    } else if (gameState.gameMode === 'online' && gameState.currentFirebaseGameData) {
+        // Logic for online game magic points (assuming similar structure in Firebase)
+        // This is a placeholder and might need adjustment based on actual Firebase data structure
+        const gd = gameState.currentFirebaseGameData;
+        if (gd.currentPlayerId === gd.player1Id && gd.player1Data) {
+            currentMagicPoints = gd.player1Data.magicPoints !== undefined ? gd.player1Data.magicPoints : '--';
+        } else if (gd.currentPlayerId === gd.player2Id && gd.player2Data) {
+            currentMagicPoints = gd.player2Data.magicPoints !== undefined ? gd.player2Data.magicPoints : '--';
+        } else {
+            currentMagicPoints = '--';
+        }
     }
+
 
     if (playerTurnDisplayElement) {
         playerTurnDisplayElement.setAttribute('player-name', currentPlayerName);
         playerTurnDisplayElement.setAttribute('player-role', playerRoleText);
         playerTurnDisplayElement.setAttribute('player-number', currentPlayerNumberString);
+        playerTurnDisplayElement.setAttribute('magic-points', currentMagicPoints.toString());
     }
 
     if(gameModeInfoDisplay) gameModeInfoDisplay.textContent = `Modo: ${gameState.gameMode === 'vsAI' ? `VS IA (${gameState.aiDifficulty})` : (gameState.gameMode === 'online' ? 'Online' : 'Local')}`;
@@ -335,8 +444,8 @@ export function displayTutorial() {
 }
 
 export function renderHighlightsAndInfo(gameState) {
-    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack, .tile.possible-heal')
-        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack', 'possible-heal'));
+    document.querySelectorAll('.tile.selected-unit-tile, .tile.possible-move, .tile.possible-attack, .tile.possible-heal, .tile.possible-summon-spawn-point')
+        .forEach(el => el.classList.remove('selected-unit-tile', 'possible-move', 'possible-attack', 'possible-heal', 'possible-summon-spawn-point'));
     document.querySelectorAll('.unit.pulse-target').forEach(el => el.classList.remove('pulse-target'));
 
     if (gameState.selectedUnit && gameState.selectedUnit.data) { // Ensure selectedUnit and its data exist
@@ -372,6 +481,8 @@ export function renderHighlightsAndInfo(gameState) {
                                 // Example: gameState.units[targetUnitData.id].classList.add('pulse-heal-target');
                             }
                         }
+                    } else if (move.type === 'summon_spawn_point') {
+                        tileEl.classList.add('possible-summon-spawn-point');
                     }
                 }
             }
@@ -533,3 +644,10 @@ export async function displayPatchNotes() {
 function handleVersionChange(event) {
     updatePatchNotesContent(event.target.value);
 }
+
+// Event Listeners for Summon Modal (ensure they are added once, e.g., in main.js or an initUI function)
+// For now, adding them here for completeness of ui.js changes, but they might be better placed in main.js
+// after gameState is initialized.
+// if (summonUnitBtn) summonUnitBtn.addEventListener('click', () => showSummonUnitModal(window.currentGlobalGameState)); // Requires global gameState
+// if (closeSummonModal) closeSummonModal.addEventListener('click', hideSummonUnitModal);
+// The actual attachment of these listeners will be handled in a subsequent step/subtask, likely in main.js.

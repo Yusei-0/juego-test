@@ -2,11 +2,46 @@
 import { UNIT_TYPES, BOARD_ROWS, BOARD_COLS } from './constants.js';
 import { getTileType } from './boardUtils.js'; // Updated import
 import { performMoveOnline, performAttackOnline } from './onlineGame.js';
-import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, performHealLocal } from './localGame.js';
-import { renderHighlightsAndInfo } from './ui.js';
+import { moveUnitAndAnimateLocal, attackUnitAndAnimateLocal, performHealLocal, summonUnitLocal } from './localGame.js'; // Added summonUnitLocal
+// Import hideSummonUnitModal and showNotification from ui.js
+import { renderHighlightsAndInfo, hideSummonUnitModal, showNotification } from './ui.js';
 
 export function onTileClick(gameState, row, col) {
     if (!gameState.gameActive || gameState.isAnimating) return;
+
+    // Summoning Action Check
+    if (gameState.isSummoning) {
+        const highlightedSummonSpot = gameState.highlightedMoves.find(m => m.row === row && m.col === col && m.type === 'summon_spawn_point');
+        if (highlightedSummonSpot) {
+            summonUnitLocal(gameState, gameState.unitToSummonType, row, col);
+
+            // Deduct magic points (example, actual deduction should be in summonUnitLocal)
+            // const unitToSummonDetails = UNIT_TYPES[gameState.unitToSummonType];
+            // if (gameState.currentPlayer === 1) {
+            //     gameState.player1MagicPoints -= unitToSummonDetails.summonCost;
+            // } else {
+            //     gameState.player2MagicPoints -= unitToSummonDetails.summonCost;
+            // }
+
+            gameState.isSummoning = false;
+            gameState.unitToSummonType = null;
+            clearHighlightsAndSelection(gameState); // Clear summon highlights
+            renderHighlightsAndInfo(gameState); // Re-render board
+            // The actual unit placement and game state update will be in summonUnitLocal
+            return; // End turn or further action for summoning.
+        } else {
+            // Clicked on a non-highlighted tile during summoning mode
+            console.log("GAME_ACTIONS: Invalid summon location. Click on a highlighted tile.");
+            // Optionally, provide visual feedback like a screen shake or error sound.
+            // For now, we just cancel summoning mode to prevent being stuck.
+            gameState.isSummoning = false;
+            gameState.unitToSummonType = null;
+            clearHighlightsAndSelection(gameState);
+            renderHighlightsAndInfo(gameState);
+            showNotification("Invocación Cancelada", "Has hecho clic en una casilla no válida. La invocación ha sido cancelada.");
+            return;
+        }
+    }
 
     if (gameState.gameMode === 'online') {
         if (!gameState.currentFirebaseGameData || gameState.currentFirebaseGameData.currentPlayerId !== gameState.localPlayerId) return;
@@ -78,7 +113,70 @@ export function clearHighlightsAndSelection(gameState) {
     gameState.selectedUnit = null;
     gameState.highlightedMoves = [];
     // No direct render call here, calling function should decide if render is needed
+    // However, if isSummoning was true, highlights should be cleared.
+    if (gameState.highlightedMoves.some(m => m.type === 'summon_spawn_point')) {
+        gameState.highlightedMoves = gameState.highlightedMoves.filter(m => m.type !== 'summon_spawn_point');
+    }
 }
+
+export function initiateSummonAction(gameState, unitTypeToSummon) {
+    if (!UNIT_TYPES[unitTypeToSummon]) {
+        console.error(`GAME_ACTIONS: Invalid unit type "${unitTypeToSummon}" for summoning.`);
+        showNotification("Error de Invocación", `Tipo de unidad inválido: ${unitTypeToSummon}.`);
+        return;
+    }
+
+    const unitDetails = UNIT_TYPES[unitTypeToSummon];
+    const currentPlayerMagic = gameState.currentPlayer === 1 ? gameState.player1MagicPoints : gameState.player2MagicPoints;
+
+    if (currentPlayerMagic < unitDetails.summonCost) {
+        console.error(`GAME_ACTIONS: Not enough magic points to summon ${unitTypeToSummon}. Required: ${unitDetails.summonCost}, Available: ${currentPlayerMagic}`);
+        showNotification("Puntos Insuficientes", `No tienes suficientes puntos mágicos para invocar ${unitDetails.name}.`);
+        hideSummonUnitModal(); // Close modal as summon cannot proceed
+        return;
+    }
+
+    clearHighlightsAndSelection(gameState); // Clear any previous selections/highlights
+    gameState.isSummoning = true;
+    gameState.unitToSummonType = unitTypeToSummon;
+    hideSummonUnitModal(); // Close the modal once summoning mode is initiated
+
+    console.log(`GAME_ACTIONS: Player ${gameState.currentPlayer} entered summoning mode for ${unitTypeToSummon}. Click a valid tile to summon.`);
+
+    const spawnRowsP1 = [BOARD_ROWS - 1, BOARD_ROWS - 2];
+    const spawnRowsP2 = [0, 1];
+    const validSpawnRows = gameState.currentPlayer === 1 ? spawnRowsP1 : spawnRowsP2;
+    let foundSpawnPoint = false;
+
+    for (const r of validSpawnRows) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            // Check if tile is within board, not river, and is empty
+            const tileType = getTileType(r, c);
+            if (tileType !== 'river' && (!gameState.board[r] || !gameState.board[r][c])) {
+                 // Ensure board[r] exists before checking board[r][c]
+                if (gameState.board[r] && gameState.board[r][c] === null) { // Explicitly check for null (empty)
+                    gameState.highlightedMoves.push({ row: r, col: c, type: 'summon_spawn_point' });
+                    foundSpawnPoint = true;
+                } else if (!gameState.board[r]) { // If the row itself doesn't exist (shouldn't happen with pre-init board)
+                    gameState.highlightedMoves.push({ row: r, col: c, type: 'summon_spawn_point' });
+                    foundSpawnPoint = true;
+                }
+            }
+        }
+    }
+
+    if (!foundSpawnPoint) {
+        console.error("GAME_ACTIONS: No valid spawn points available for summoning.");
+        showNotification("Invocación Fallida", "No hay casillas válidas disponibles para invocar unidades.");
+        gameState.isSummoning = false;
+        gameState.unitToSummonType = null;
+        // No need to call renderHighlightsAndInfo if no highlights were added and state is reset
+        return;
+    }
+
+    renderHighlightsAndInfo(gameState);
+}
+
 
 export function calculatePossibleMovesAndAttacksForUnit(gameState, unitData, updateGlobalHighlights = false) {
     const possibleActions = [];

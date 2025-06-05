@@ -111,6 +111,7 @@
                 <p class="roster-title">Unidades del Jugador Actual</p>
             </div>
 
+            <button id="summonUnitBtn" class="w-full action-button" style="display: none; margin-top: 0.5rem;">Invocar Unidad</button>
             <button id="surrenderBtn" class="w-full warning-button" style="display: none; margin-top: 0.5rem;">Rendirse</button>
             <button id="generalLeaveGameBtn" class="w-full danger-button">Salir / Volver al Menú</button>
         </div>
@@ -127,6 +128,17 @@
             <h3 id="notificationTitle" class="text-xl font-bold mb-3 text-yellow-300">Notificación</h3>
             <p id="notificationMessageText" class="text-md"></p>
             <button id="notificationOkBtn" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <div id="summonUnitModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close-button" id="closeSummonModal">&times;</span>
+            <h2>Invocar Unidad</h2>
+            <p>Puntos Mágicos: <span id="summonModalMagicPoints">--</span></p>
+            <div id="summonUnitList">
+                <!-- Unit options will be populated here by JavaScript -->
+            </div>
         </div>
     </div>
 

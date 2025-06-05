@@ -134,7 +134,7 @@ body {
             outline-offset: -3px;
             box-shadow: 0 0 10px #f6e05e;
         }
-        .possible-move::after, .possible-attack::after {
+        .possible-move::after, .possible-attack::after, .possible-heal::after, .tile.possible-summon-spawn-point::after {
             content: '';
             position: absolute;
             top: 50%;
@@ -148,6 +148,9 @@ body {
         }
         .possible-move::after { background-color: #68d391; }
         .possible-attack::after { background-color: #fc8181; }
+        .possible-heal::after { background-color: #3f9; } /* Light green for heal indication */
+        .tile.possible-summon-spawn-point::after { background-color: #59f0ff; } /* Light cyan for summon indication */
+
 
         .unit.pulse-target {
             animation: pulse-red-border-unit 0.7s infinite alternate;
@@ -208,6 +211,9 @@ body {
          #gameLogDisplay .log-death { color: #e53e3e; font-weight: bold; }
          #gameLogDisplay .log-turn { color: #63b3ed; font-style: italic; }
          #gameLogDisplay .log-system { color: #cbd5e0; font-weight: bold;}
+         #gameLogDisplay .log-heal { color: #48bb78; } /* Heal log color */
+         #gameLogDisplay .log-summon { color: #a3bffa; } /* Summon log color */
+
 
         #unitRosterPanel .roster-title {
             font-weight: bold;
@@ -221,37 +227,55 @@ body {
          #unitRosterPanel .unit-entry-p2 { color: #90cdf4; }
 
 
-        button {
+        button, .button { /* Added .button for more generic button styling if needed */
             font-family: 'Roboto Condensed', sans-serif;
-            background-color: #4a5568;
+            background-color: #4a5568; /* gray-600 */
             color: white;
             padding: 0.6rem 1.2rem;
             border: none;
             border-radius: 0.3rem;
             cursor: pointer;
             font-size: 1rem;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
             margin-top: 0.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        button:hover { background-color: #718096; }
-        button:disabled { background-color: #a0aec0; cursor: not-allowed; }
-        .restart-button, .action-button {
-            background-color: #48bb78;
+        button:hover, .button:hover {
+            background-color: #718096; /* gray-500 */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
-        .restart-button:hover, .action-button:hover {
-            background-color: #38a169;
+        button:disabled, .button:disabled {
+            background-color: #a0aec0; /* gray-400 */
+            color: #cbd5e0; /* gray-300 */
+            cursor: not-allowed;
+            box-shadow: none;
         }
-        .secondary-button {
-             background-color: #667eea;
+
+        .action-button { /* For primary actions like Confirm, Attack, Summon */
+            background-color: #48bb78; /* green-500 */
+        }
+        .action-button:hover {
+            background-color: #38a169; /* green-600 */
+        }
+        .secondary-button { /* For secondary actions like Cancel, Back */
+             background-color: #667eea; /* indigo-500 */
         }
         .secondary-button:hover {
-             background-color: #5a67d8;
+             background-color: #5a67d8; /* indigo-600 */
         }
-        .danger-button {
-            background-color: #f56565;
+        .warning-button { /* For actions that require caution, like Surrender */
+            background-color: #ecc94b; /* yellow-500 */
+            color: #2d3748; /* dark text for better contrast on yellow */
+        }
+        .warning-button:hover {
+            background-color: #d69e2e; /* yellow-600 */
+        }
+        .danger-button { /* For destructive actions like Leave Game, Delete */
+            background-color: #f56565; /* red-500 */
         }
         .danger-button:hover {
-            background-color: #e53e3e;
+            background-color: #e53e3e; /* red-600 */
         }
 
 
@@ -263,36 +287,121 @@ body {
         #selectedUnitInfo p { margin: 0.2rem 0; }
 
         .modal {
-            display: none;
+            display: none; /* Hidden by default */
             position: fixed;
-            z-index: 1000;
+            z-index: 1000; /* Sit on top */
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.8);
+            overflow: auto; /* Enable scroll if content overflows */
+            background-color: rgba(0,0,0,0.8); /* Black w/ opacity for overlay */
+            align-items: center; /* For flexbox centering of modal-content */
+            justify-content: center; /* For flexbox centering of modal-content */
         }
         .modal-content {
-            background-color: #2d3748;
-            color: #e2e8f0;
-            margin: 10% auto;
-            padding: 30px;
-            border: 2px solid #63b3ed;
+            background-color: #2d3748; /* gray-800 */
+            color: #e2e8f0; /* gray-200 */
+            margin: auto; /* Handles centering for non-flex, good fallback */
+            padding: 25px 30px;
+            border: 2px solid #63b3ed; /* blue-400 */
             border-radius: 0.75rem;
             width: 90%;
-            max-width: 550px;
+            max-width: 550px; /* Max width of modal */
             text-align: center;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+            position: relative; /* For positioning the close button */
         }
         .modal-content h2 {
-            font-family: 'Press Start 2P';
-            font-size: 2rem;
-            margin-bottom: 1.5rem;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.6rem; /* Adjusted for consistency */
+            margin-bottom: 1.2rem;
             line-height: 1.3;
         }
-        .modal-content .winner-player1 { color: #fbd38d; }
-        .modal-content .winner-player2 { color: #90cdf4; }
+        .modal-content .winner-player1 { color: #fbd38d; } /* yellow-300 */
+        .modal-content .winner-player2 { color: #90cdf4; } /* blue-300 */
+
+        .close-button {
+            color: #a0aec0; /* gray-500 */
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #e2e8f0; /* gray-200 */
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Summon Unit Modal Specific Styles */
+        #summonUnitModal .modal-content {
+            max-width: 600px; /* Slightly wider for unit list */
+        }
+        #summonUnitModal h2 {
+            color: #a3bf_fa; /* A light blue, distinct from game over */
+            font-size: 1.5rem;
+        }
+        #summonUnitModal p {
+            font-size: 1rem;
+            margin-bottom: 0.8rem;
+        }
+        #summonModalMagicPoints {
+            font-weight: bold;
+            color: #fbd38d; /* yellow for magic points */
+        }
+        #summonUnitList {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem; /* Space between unit options */
+            margin-top: 1rem;
+            max-height: 300px; /* Max height for scrollability */
+            overflow-y: auto;
+            padding: 0.5rem;
+            background-color: #1a202c; /* Darker background for the list */
+            border-radius: 0.3rem;
+        }
+        /* Individual unit entry in the summon list (to be added by JS) */
+        .summon-unit-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem 1rem;
+            background-color: #4a5568; /* gray-600 */
+            border-radius: 0.3rem;
+            border: 1px solid #718096; /* gray-500 */
+        }
+        .summon-unit-option:hover {
+            background-color: #5a67d8; /* indigo-500 for hover */
+            border-color: #7f9cf5; /* indigo-300 */
+        }
+        .summon-unit-option p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .summon-unit-option .unit-name {
+            font-weight: bold;
+            color: #e2e8f0; /* gray-200 */
+        }
+        .summon-unit-option .unit-cost {
+            color: #fbd38d; /* yellow for cost */
+        }
+        .summon-unit-option button {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+            margin-top: 0; /* Reset margin for button inside option */
+            background-color: #48bb78; /* green-500 */
+        }
+        .summon-unit-option button:hover {
+            background-color: #38a169; /* green-600 */
+        }
+        .summon-unit-option button:disabled {
+            background-color: #a0aec0; /* gray-400 */
+            color: #718096; /* gray-500 */
+        }
 
 
         @media (min-width: 768px) {
@@ -432,8 +541,9 @@ body {
 }
 
 .tile.possible-heal {
-    background-color: rgba(0, 255, 0, 0.4); /* Semi-transparent green */
-    outline: 2px dashed limegreen;
+    /* background-color: rgba(0, 255, 0, 0.4); /* Semi-transparent green */
+    /* outline: 2px dashed limegreen; */
+    /* Using ::after pseudo-element for consistency */
 }
 
 /* General styles for game-log custom element */
