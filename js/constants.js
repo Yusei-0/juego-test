@@ -15,7 +15,7 @@ export const UNIT_TYPES = {
     BASE: { name: 'Base', hp: 25, attack: 0, movement: 0, range: 0, class: 'base', isMobile: false, drawFunc: 'drawBase' },
     GUERRERO: { name: 'Guerrero', hp: 20, attack: 8, movement: 2, range: 1, class: 'guerrero', isMobile: true, drawFunc: 'drawGuerrero', summonCost: 15 },
     ARQUERO: { name: 'Arquero', hp: 15, attack: 6, movement: 2, range: 3, class: 'arquero', isMobile: true, drawFunc: 'drawArquero', summonCost: 20 },
-    GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante', summonCost: 30 },
+    GIGANTE: { name: 'Gigante', hp: 40, attack: 15, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante', summonCost: 35 },
     // Unidad Guerrero Especial: Sandor
     SANADOR: { name: 'Sanador', hp: 25, attack: 10, movement: 2, range: 1, class: 'sanador', isMobile: true, drawFunc: 'drawSanador', summonCost: 25, abilityCost: 10,
         // Cantidad de PV que cura
@@ -23,7 +23,7 @@ export const UNIT_TYPES = {
         // Alcance de la curación (en casillas)
         healRange: 1 },
     // Unidad Aérea: Unidad Voladora
-    UNIDAD_VOLADORA: { name: 'Unidad Voladora', hp: 18, attack: 7, movement: 2, range: 1, class: 'voladora', isMobile: true, drawFunc: 'drawUnidadVoladora', summonCost: 25 }
+    UNIDAD_VOLADORA: { name: 'Unidad Voladora', hp: 15, attack: 7, movement: 2, range: 1, class: 'voladora', isMobile: true, drawFunc: 'drawUnidadVoladora', summonCost: 15 }
 };
 
 // Music file paths
