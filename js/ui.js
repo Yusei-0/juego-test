@@ -31,7 +31,12 @@ export const playerUserIdDisplay_Lobby = document.getElementById('playerUserIdDi
 export const createGameBtn_Lobby = document.getElementById('createGameBtn_Lobby');
 export const joinGameIdInput_Lobby = document.getElementById('joinGameIdInput_Lobby');
 export const joinGameBtn_Lobby = document.getElementById('joinGameBtn_Lobby');
+export const quickMatchBtn_Lobby = document.getElementById('quickMatchBtn_Lobby'); // New
 export const backToMainMenuBtn_Lobby = document.getElementById('backToMainMenuBtn_Lobby');
+export const matchmakingScreen = document.getElementById('matchmakingScreen'); // New
+export const matchmakingStatusText = document.getElementById('matchmakingStatusText'); // New
+export const cancelMatchmakingBtn = document.getElementById('cancelMatchmakingBtn'); // New
+export const backToMainMenuBtn_Matchmaking = document.getElementById('backToMainMenuBtn_Matchmaking'); // New
 export const waitingRoomScreen = document.getElementById('waitingRoomScreen');
 export const waitingGameIdDisplay = document.getElementById('waitingGameIdDisplay');
 export const waitingStatusText = document.getElementById('waitingStatusText');
@@ -112,6 +117,7 @@ export function showScreen(screenId) {
         { name: "mainMenuScreen", el: mainMenuScreen },
         { name: "difficultyScreen", el: difficultyScreen },
         { name: "onlineLobbyScreen", el: onlineLobbyScreen },
+        { name: "matchmakingScreen", el: matchmakingScreen }, // New
         { name: "waitingRoomScreen", el: waitingRoomScreen },
         { name: "gameContainer", el: gameContainer },
         { name: "gameOverModal", el: gameOverModal },

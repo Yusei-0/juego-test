@@ -23,6 +23,7 @@ import {
 } from './ui.js';
 import { initializeLocalBoardAndUnits } from './localGame.js';
 import { joinGameSessionOnline, leaveGameCleanup, hostNewOnlineGame, joinExistingOnlineGame, handleSurrenderOnline } from './onlineGame.js';
+import { initializeMatchmaking, startMatchmaking, cancelMatchmaking, cleanupMatchmakingListeners } from './matchmaking.js';
 import * as gameActions from './gameActions.js'; // Import all game actions
 import { defineComponent } from './elemental.js';
 import { PlayerTurnDisplay } from './components/PlayerTurnDisplay.js';
@@ -42,6 +43,7 @@ let gameState = {
     localPlayerNumber: null, currentGameId: null, selectedUnit: null,
     highlightedMoves: [], gameActive: false, isAnimating: false, gameLog: [],
     gameMode: null, aiDifficulty: null, aiPlayerNumber: 2,
+    isMatchmaking: false, // New state for matchmaking
     unsubscribeGameListener: null
 };
 
@@ -59,6 +61,7 @@ async function handleFirebaseAuthStateChanged(user) {
 
         showScreen(mainMenuScreen.id);
         playMenuMusic(); // Start menu music
+        initializeMatchmaking(gameState); // Initialize matchmaking
 
         // Configure and set up event listener for the main menu component
         const mainMenuComponent = document.getElementById('mainMenuComponent');
@@ -211,6 +214,31 @@ if(joinGameBtn_Lobby) joinGameBtn_Lobby.addEventListener('click', async () => {
     const gameIdToJoin = joinGameIdInput_Lobby.value.trim();
     await joinExistingOnlineGame(gameState, gameIdToJoin);
 });
+
+// New matchmaking buttons
+const quickMatchBtn = document.getElementById('quickMatchBtn_Lobby');
+if (quickMatchBtn) {
+    quickMatchBtn.addEventListener('click', () => {
+        startMatchmaking();
+    });
+}
+
+const cancelMatchBtn = document.getElementById('cancelMatchmakingBtn');
+if (cancelMatchBtn) {
+    cancelMatchBtn.addEventListener('click', () => {
+        cancelMatchmaking();
+    });
+}
+
+const backToMenuFromMatchmakingBtn = document.getElementById('backToMainMenuBtn_Matchmaking');
+if (backToMenuFromMatchmakingBtn) {
+    backToMenuFromMatchmakingBtn.addEventListener('click', () => {
+        cancelMatchmaking(); // This will also handle listener cleanup and UI update
+        // cancelMatchmaking() itself calls showScreen, navigating to onlineLobbyScreen.
+        // We want mainMenuScreen for this specific button, so call showScreen again.
+        showScreen(mainMenuScreen.id);
+    });
+}
 
 
 document.addEventListener('DOMContentLoaded', async () => {
