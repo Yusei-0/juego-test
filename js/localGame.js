@@ -70,8 +70,8 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     placeUnit(createUnitData('BASE', 2, 0), 0, Math.floor(BOARD_COLS / 2));
 
     gameState.currentPlayer = 1;
-    gameState.player1MagicPoints = 50;
-    gameState.player2MagicPoints = 50;
+    gameState.player1MagicPoints = 65;
+    gameState.player2MagicPoints = 65;
     gameState.localPlayerNumber = 1;
     gameState.selectedUnit = null;
     gameState.highlightedMoves = [];

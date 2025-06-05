@@ -1,5 +1,13 @@
 # Notas del Parche
 
+Para notas del parche detalladas a partir de la versión 1.1.0, por favor consulta los archivos individuales en el directorio `patch_notes/`.
+
+## Versión 1.1.0
+
+- Puntos de Magia iniciales incrementados a 65.
+- Implementada nueva arquitectura para el versionado y notas del parche.
+- Detalles completos en: [patch_notes/1.1.0.md](./patch_notes/1.1.0.md)
+
 ## Versión 1.0
 - Cambios iniciales de jugabilidad y unidades.
 

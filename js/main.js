@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0";
+const APP_VERSION = "1.1.0";
 import { initializeFirebase } from './firebase.js';
 import { initializeSounds, initializeMusic, playMenuMusic, stopMenuMusic } from './sound.js';
 import { animateRiver } from './graphics.js';
