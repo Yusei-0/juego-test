@@ -1,4 +1,5 @@
-let moveSound, attackSound, damageSound, deathSound, turnSound;
+// Sonido para la habilidad de curación
+let moveSound, attackSound, damageSound, deathSound, turnSound, healSound;
 
 function initializeSounds() {
     if (typeof Tone !== 'undefined') {
@@ -12,6 +13,9 @@ function initializeSounds() {
         deathSound.volume.value = -12;
         turnSound = new Tone.Synth({ oscillator: {type: "square"}, envelope: {attack: 0.01, decay: 0.08, sustain: 0.01, release: 0.1} }).toDestination();
         turnSound.volume.value = -18;
+        // Inicializa el sonido de curación
+        healSound = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 } }).toDestination();
+        healSound.volume.value = -14; // Adjust volume as needed
          console.log("Sonidos inicializados con Tone.js");
     } else { console.warn("Tone.js no está cargado."); }
 }
@@ -28,7 +32,9 @@ function playSound(type, note = null) {
         case 'damage': if(damageSound) damageSound.triggerAttackRelease(note || "C3", "8n", Tone.now(), 0.8); break;
         case 'death': if(deathSound) deathSound.triggerAttackRelease(note || "C2", "2n"); break;
         case 'turn': if(turnSound) turnSound.triggerAttackRelease(note || "E5", "16n"); break;
+        // Sonido de curación
+        case 'heal': if(healSound) healSound.triggerAttackRelease(note || "C5", "8n"); break; // Added heal sound
     }
 }
 
-export { initializeSounds, playSound, moveSound, attackSound, damageSound, deathSound, turnSound };
+export { initializeSounds, playSound, moveSound, attackSound, damageSound, deathSound, turnSound, healSound };

@@ -406,3 +406,17 @@ body {
      color: white;
      margin-top: 1rem; /* Add some space above the button */
 }
+
+.unit.unit-healed {
+    animation: flash-green 0.3s ease-in-out;
+}
+
+@keyframes flash-green {
+    0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.7); }
+    50% { box-shadow: 0 0 15px 10px rgba(0, 255, 0, 0.9); }
+}
+
+.tile.possible-heal {
+    background-color: rgba(0, 255, 0, 0.4); /* Semi-transparent green */
+    outline: 2px dashed limegreen;
+}

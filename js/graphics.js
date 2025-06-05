@@ -98,7 +98,7 @@ const unitDrawFunctions = {
         drawPixel(ctx, 12,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 13,4,clubStone,pSize, artOffsetX, artOffsetY); drawPixel(ctx, 14,4,clubStone,pSize, artOffsetX, artOffsetY);
     },
     // --- Dibuja la unidad Sandor ---
-    drawSandor: (ctx, canvasSize, isPlayer1) => {
+    drawSanador: (ctx, canvasSize, isPlayer1) => {
         const pSize = Math.floor(canvasSize / PIXEL_GRID_SIZE);
         const artActualWidth = PIXEL_GRID_SIZE * pSize;
         const artActualHeight = PIXEL_GRID_SIZE * pSize;
