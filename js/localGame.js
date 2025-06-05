@@ -196,9 +196,10 @@ export function switchTurnLocal(gameState) {
     gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
     addLogEntry(gameState, `Turno del Jugador ${gameState.currentPlayer}.`, 'turn');
     playSound('turn', gameState.currentPlayer === 1 ? 'G5' : 'A5');
-    if (gameState.gameActive && !canPlayerMakeAnyMoveLocal(gameState)) {
-        endGameLocal(gameState, gameState.currentPlayer === 1 ? 2 : 1, "Sin Movimientos"); return;
-    }
+    // The following old loss condition line has been removed:
+    // if (gameState.gameActive && !canPlayerMakeAnyMoveLocal(gameState)) {
+    //     endGameLocal(gameState, gameState.currentPlayer === 1 ? 2 : 1, "Sin Movimientos"); return;
+    // }
     renderHighlightsAndInfo(gameState); // Initial UI update for the new player's turn
     renderUnitRosterLocal(gameState); // Update roster for the new player
 
