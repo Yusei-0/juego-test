@@ -1,3 +1,4 @@
+const APP_VERSION = "1.0";
 import { initializeFirebase } from './firebase.js';
 import { initializeSounds } from './sound.js';
 import { animateRiver } from './graphics.js';
@@ -180,6 +181,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Use onAuthStateChanged and firebaseAuth from the initialization result
         firebaseInitResult.onAuthStateChanged(firebaseInitResult.firebaseAuth, handleFirebaseAuthStateChanged);
         animateRiver(gameState);
+
+        const versionDisplayElement = document.createElement('p');
+        versionDisplayElement.id = 'appVersionDisplay';
+        versionDisplayElement.textContent = `Versión: ${APP_VERSION}`;
+        versionDisplayElement.style.textAlign = 'center'; // Optional: center align
+        versionDisplayElement.style.color = '#cbd5e0'; // Optional: light gray color
+        versionDisplayElement.style.fontSize = '0.9rem'; // Optional: slightly smaller font
+
+        const gameTitleElement = document.querySelector('h1.game-title');
+        if (gameTitleElement && gameTitleElement.parentNode) {
+            gameTitleElement.parentNode.insertBefore(versionDisplayElement, gameTitleElement.nextSibling);
+        } else {
+            // Fallback if title isn't found, though it should be there
+            document.body.insertBefore(versionDisplayElement, document.body.firstChild);
+        }
     } else {
         console.error("Firebase initialization failed:", firebaseInitResult.error);
         if(authLoadingScreen) {
