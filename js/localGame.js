@@ -2,7 +2,8 @@
 import { BOARD_ROWS, BOARD_COLS, TILE_SIZE, UNIT_TYPES, UNIT_CANVAS_SIZE } from './constants.js';
 // unitDrawFunctions is imported in ui.js where createUnitElement is now located
 import { playSound } from './sound.js';
-import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, unitLayerElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
+// Removed unitLayerElement from this import
+import { addLogEntry, renderHighlightsAndInfo, renderUnitRosterLocal, gameBoardElement, aiTurnIndicator, showEndGameModal, createUnitElement } from './ui.js';
 import { aiTakeTurn } from './ai.js';
 import { calculatePossibleMovesAndAttacksForUnit, clearHighlightsAndSelection } from './gameActions.js';
 import { getTileType, createUnitData } from './boardUtils.js'; // Updated imports
@@ -15,24 +16,40 @@ export function initializeLocalBoardAndUnits(gameState, onTileClickCallback) {
     // 1. Clear gameBoardElement first. This removes unitLayer if it was a child.
     if (gameBoardElement) gameBoardElement.innerHTML = '';
 
-    // 2. Ensure unitLayerElement (from ui.js, assumed to be the one from index.html)
+    // 2. Ensure unitLayerElement (fetched dynamically)
     //    is a child of gameBoardElement.
-    //    (unitLayerElement is already defined in the scope via import from ui.js)
-    if (gameBoardElement && unitLayerElement) {
-        if (!gameBoardElement.contains(unitLayerElement)) {
-            gameBoardElement.appendChild(unitLayerElement);
+    let uLayer = document.getElementById('unitLayer');
+    if (gameBoardElement && uLayer) {
+        if (!gameBoardElement.contains(uLayer)) {
+            // If unitLayer is not a child of gameBoard, it might be an error
+            // or it might be elsewhere in the DOM (e.g. if HTML structure changed).
+            // For now, we'll attempt to append it as the original logic did.
+            // However, the original HTML places it correctly.
+            gameBoardElement.appendChild(uLayer);
         }
+    } else if (!uLayer) {
+        console.error("initializeLocalBoardAndUnits: 'unitLayer' element not found in DOM during re-parenting check.");
     }
 
-    // 3. Now that unitLayerElement is confirmed to be in the DOM and attached to gameBoard,
+
+    // 3. Now that unitLayerElement is confirmed to be in the DOM and ideally attached to gameBoard,
     //    clear its contents (old units).
-    if (unitLayerElement) unitLayerElement.innerHTML = '';
-
-    // 4. Apply styles (these can remain here or be moved after unitLayer re-attachment)
-    if (unitLayerElement) {
-        unitLayerElement.style.width = `${BOARD_COLS * TILE_SIZE}px`;
-        unitLayerElement.style.height = `${BOARD_ROWS * TILE_SIZE}px`;
+    uLayer = document.getElementById('unitLayer'); // Re-fetch, especially if it was just appended.
+    if (uLayer) {
+        uLayer.innerHTML = '';
+    } else {
+        console.error("initializeLocalBoardAndUnits: 'unitLayer' element not found in DOM before clearing contents.");
     }
+
+    // 4. Apply styles
+    uLayer = document.getElementById('unitLayer'); // Re-fetch for styling.
+    if (uLayer) {
+        uLayer.style.width = `${BOARD_COLS * TILE_SIZE}px`;
+        uLayer.style.height = `${BOARD_ROWS * TILE_SIZE}px`;
+    } else {
+        console.error("initializeLocalBoardAndUnits: 'unitLayer' element not found in DOM before applying styles.");
+    }
+
     if (gameBoardElement) {
         gameBoardElement.style.gridTemplateColumns = `repeat(${BOARD_COLS}, ${TILE_SIZE}px)`;
         gameBoardElement.style.gridTemplateRows = `repeat(${BOARD_ROWS}, ${TILE_SIZE}px)`;

@@ -34,7 +34,7 @@ export const waitingStatusText = document.getElementById('waitingStatusText');
 export const playerListDiv = document.getElementById('playerList');
 export const leaveWaitingRoomBtn = document.getElementById('leaveWaitingRoomBtn');
 export const gameBoardElement = document.getElementById('gameBoard');
-export const unitLayerElement = document.getElementById('unitLayer');
+// export const unitLayerElement = document.getElementById('unitLayer'); // Commented out as per request
 // export const currentPlayerText = document.getElementById('currentPlayerText'); // Removed
 // export const playerRoleDisplay = document.getElementById('playerRoleDisplay'); // Removed
 export const gameModeInfoDisplay = document.getElementById('gameModeInfoDisplay');
@@ -78,10 +78,11 @@ export function createUnitElement(gameState, unitData) {
     unitElement.style.transform = `translate(${unitData.col * TILE_SIZE}px, ${unitData.row * TILE_SIZE}px)`;
     unitElement.__unitData = unitData;
 
-    if (unitLayerElement) {
-        unitLayerElement.appendChild(unitElement);
+    const currentUnitLayer = document.getElementById('unitLayer');
+    if (currentUnitLayer) {
+        currentUnitLayer.appendChild(unitElement);
     } else {
-        console.error("unitLayerElement is not available in createUnitElement");
+        console.error("Failed to find 'unitLayer' element in the DOM within createUnitElement.");
     }
 
     gameState.units[unitData.id] = unitElement;
