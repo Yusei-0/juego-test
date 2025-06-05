@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // == Matchmaking System Rules ==
+
+    // Matchmaking Queue:
+    // Users can create documents with their own UID as the document ID.
+    // They can also delete their own document to leave the queue.
+    // Only the 'timestamp' and 'gameMode' fields can be written by the client.
+    match /matchmakingQueue/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasAll(['playerId', 'timestamp', 'gameMode'])
+                    && request.resource.data.playerId == request.auth.uid
+                    && request.resource.data.timestamp == request.time; // Enforce server timestamp for 'timestamp'
+                    // && request.resource.data.gameMode is string; // Optional: type check gameMode
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow update: if false; // No updates allowed by client to queue entries
+    }
+
+    // Player Match Results:
+    // Users can only read their own match result document.
+    // Client-side writes are disallowed; these are created by Cloud Functions.
+    // Client-side deletes are allowed so client can clean up after reading.
+    match /playerMatchResults/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId; // Client can delete after processing
+      allow create, update: if false; // Only backend (Cloud Functions) can create/update
+    }
+
+    // == Existing Game Rules (river_wars_online_games_v2) ==
+    // These are based on the snippets from your js/onlineGame.js and common patterns.
+    // **ADAPT THESE CAREFULLY to your exact game logic and security needs.**
+    match /river_wars_online_games_v2/{gameId} {
+      // Who can read a game document?
+      // - Authenticated users (simplest).
+      // - OR, only players involved in the game.
+      allow read: if request.auth != null;
+      // More restrictive read:
+      // allow read: if request.auth != null && (
+      //                 request.auth.uid == resource.data.player1Id ||
+      //                 request.auth.uid == resource.data.player2Id
+      //               );
+
+      // Who can create a game document?
+      // - This is now primarily handled by the Cloud Function for matchmaking.
+      // - For manual game creation (hostNewOnlineGame), the user creating it is player1.
+      allow create: if request.auth != null
+                    && request.resource.data.player1Id == request.auth.uid
+                    && request.resource.data.status == 'waiting' // Manual creation starts in 'waiting'
+                    && request.resource.data.player2Id == null;
+                    // Add checks for all required initial fields for security.
+
+      // Who can update a game document? (e.g., join a game, make moves)
+      allow update: if request.auth != null && (
+                      // Case 1: Joining a game (player2Id is being set from null)
+                      (resource.data.player2Id == null &&
+                       request.resource.data.player2Id == request.auth.uid &&
+                       request.resource.data.status == 'active' && // Game becomes active when P2 joins
+                       request.auth.uid != resource.data.player1Id && // P2 cannot be P1
+                       // Ensure only specific fields are changed when joining:
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['player2Id', 'status', 'gameLog', 'lastMoveAt'])
+                      ) ||
+                      // Case 2: Player making a move (game is active)
+                      (resource.data.status == 'active' &&
+                       (request.auth.uid == resource.data.player1Id || request.auth.uid == resource.data.player2Id) &&
+                       request.auth.uid == resource.data.currentPlayerId && // Only current player can make a move
+                       // Ensure lastMoveAt is updated with server timestamp
+                       request.resource.data.lastMoveAt == request.time &&
+                       // Define which fields a player can update during a move (units, currentPlayerId, status, gameLog, winnerReason, etc.)
+                       // This needs to be granular and match your game's update logic.
+                       // Example:
+                       request.resource.data.diff(resource.data).affectedKeys().hasAny(['units', 'currentPlayerId', 'status', 'gameLog', 'winnerReason', 'lastMoveAt'])
+                      ) ||
+                      // Case 3: Surrender (status changes, winnerReason might be set)
+                      (resource.data.status == 'active' &&
+                       (request.auth.uid == resource.data.player1Id || request.auth.uid == resource.data.player2Id) &&
+                       request.resource.data.status != resource.data.status && // Status must change
+                       request.resource.data.status.matches('player._wins') &&
+                       request.resource.data.winnerReason == "Rendición" && // Or "Desconexión" for leaveGameCleanup
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'winnerReason', 'currentPlayerId', 'lastMoveAt', 'gameLog'])
+                      )
+                    );
+
+      // Who can delete a game document?
+      // - Generally, games might not be deleted by clients, or only under specific conditions
+      //   (e.g., host deleting a 'waiting' game).
+      allow delete: if request.auth != null &&
+                      resource.data.status == 'waiting' &&
+                      request.auth.uid == resource.data.player1Id;
+    }
+
+    // == Other Collections (if any) ==
+    // match /yourOtherCollection/{docId} {
+    //   // rules for other collections
+    // }
+  }
+}
+```
