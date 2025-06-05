@@ -1,4 +1,11 @@
+import { MENU_MUSIC_PATH, COMBAT_MUSIC_PATH } from './constants.js';
+
+// Existing sound effect players
 let moveSound, attackSound, damageSound, deathSound, turnSound;
+
+// Music players
+let menuMusicPlayer;
+let combatMusicPlayer;
 
 function initializeSounds() {
     if (typeof Tone !== 'undefined') {
@@ -16,10 +23,36 @@ function initializeSounds() {
     } else { console.warn("Tone.js no está cargado."); }
 }
 
+function initializeMusic() {
+    if (typeof Tone !== 'undefined' && Tone.Player) {
+        menuMusicPlayer = new Tone.Player({
+            url: MENU_MUSIC_PATH,
+            loop: true,
+            autostart: false,
+            volume: -10 // Default volume, can be adjusted
+        }).toDestination();
+
+        combatMusicPlayer = new Tone.Player({
+            url: COMBAT_MUSIC_PATH,
+            loop: true,
+            autostart: false,
+            volume: -10 // Default volume, can be adjusted
+        }).toDestination();
+
+        // Optional: Pre-load audio files.
+        // Tone.loaded().then(() => {
+        //   console.log("Music files pre-loaded.");
+        // });
+        console.log("Music players initialized.");
+    } else {
+        console.warn("Tone.js or Tone.Player is not available. Music playback disabled.");
+    }
+}
+
 function playSound(type, note = null) {
     if (typeof Tone === 'undefined' || !Tone.context || Tone.context.state !== 'running') {
         if (Tone && Tone.context && Tone.context.state !== 'running') {
-            Tone.start().then(() => {}).catch(e => {});
+            Tone.start().then(() => {}).catch(e => {}); // Attempt to start Tone context on first interaction
         } return;
     }
     switch(type) {
@@ -31,4 +64,95 @@ function playSound(type, note = null) {
     }
 }
 
-export { initializeSounds, playSound, moveSound, attackSound, damageSound, deathSound, turnSound };
+function playMenuMusic() {
+    if (typeof Tone === 'undefined' || !Tone.Player) return;
+    if (!Tone.context || Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            if (menuMusicPlayer && menuMusicPlayer.loaded) {
+                 if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
+                 if (menuMusicPlayer.state !== "started") menuMusicPlayer.start();
+            } else if (menuMusicPlayer) {
+                menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
+                    if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
+                    menuMusicPlayer.start();
+                }).catch(e => console.error("Error loading menu music:", e));
+            }
+        }).catch(e => console.error("Error starting Tone context for menu music:", e));
+        return;
+    }
+
+    if (menuMusicPlayer && menuMusicPlayer.loaded) {
+        if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
+        if (menuMusicPlayer.state !== "started") {
+            menuMusicPlayer.start();
+            console.log("Menu music started.");
+        }
+    } else if (menuMusicPlayer) {
+        menuMusicPlayer.load(MENU_MUSIC_PATH).then(() => {
+            if (combatMusicPlayer && combatMusicPlayer.state === "started") combatMusicPlayer.stop();
+            menuMusicPlayer.start();
+            console.log("Menu music loaded and started.");
+        }).catch(e => console.error("Error loading menu music:", e));
+    }
+}
+
+function stopMenuMusic() {
+    if (menuMusicPlayer && menuMusicPlayer.state === "started") {
+        menuMusicPlayer.stop();
+        console.log("Menu music stopped.");
+    }
+}
+
+function playCombatMusic() {
+    if (typeof Tone === 'undefined' || !Tone.Player) return;
+    if (!Tone.context || Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            if (combatMusicPlayer && combatMusicPlayer.loaded) {
+                if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
+                if (combatMusicPlayer.state !== "started") combatMusicPlayer.start();
+            } else if (combatMusicPlayer) {
+                combatMusicPlayer.load(COMBAT_MUSIC_PATH).then(() => {
+                    if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
+                    combatMusicPlayer.start();
+                }).catch(e => console.error("Error loading combat music:", e));
+            }
+        }).catch(e => console.error("Error starting Tone context for combat music:", e));
+        return;
+    }
+
+    if (combatMusicPlayer && combatMusicPlayer.loaded) {
+        if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
+        if (combatMusicPlayer.state !== "started") {
+            combatMusicPlayer.start();
+            console.log("Combat music started.");
+        }
+    } else if (combatMusicPlayer) {
+        combatMusicPlayer.load(COMBAT_MUSIC_PATH).then(() => {
+            if (menuMusicPlayer && menuMusicPlayer.state === "started") menuMusicPlayer.stop();
+            combatMusicPlayer.start();
+            console.log("Combat music loaded and started.");
+        }).catch(e => console.error("Error loading combat music:", e));
+    }
+}
+
+function stopCombatMusic() {
+    if (combatMusicPlayer && combatMusicPlayer.state === "started") {
+        combatMusicPlayer.stop();
+        console.log("Combat music stopped.");
+    }
+}
+
+export {
+    initializeSounds,
+    playSound,
+    moveSound,
+    attackSound,
+    damageSound,
+    deathSound,
+    turnSound,
+    initializeMusic,
+    playMenuMusic,
+    stopMenuMusic,
+    playCombatMusic,
+    stopCombatMusic
+};

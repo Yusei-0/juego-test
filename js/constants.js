@@ -17,3 +17,7 @@ export const UNIT_TYPES = {
     ARQUERO: { name: 'Arquero', hp: 15, attack: 6, movement: 2, range: 3, class: 'arquero', isMobile: true, drawFunc: 'drawArquero' },
     GIGANTE: { name: 'Gigante', hp: 35, attack: 10, movement: 1, range: 1, class: 'gigante', isMobile: true, drawFunc: 'drawGigante' }
 };
+
+// Music file paths
+export const MENU_MUSIC_PATH = 'assets/music/menu_music.mp3';
+export const COMBAT_MUSIC_PATH = 'assets/music/combat_music.mp3';
