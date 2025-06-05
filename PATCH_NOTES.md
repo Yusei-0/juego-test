@@ -1,38 +1,7 @@
 # Notas del Parche
 
-Para notas del parche detalladas a partir de la versión 1.1.0, por favor consulta los archivos individuales en el directorio `patch_notes/`.
+Todas las notas del parche para este juego se encuentran almacenadas como archivos individuales dentro del directorio `patch_notes/`.
 
-## Versión 1.1.0
+Cada archivo Markdown en ese directorio (por ejemplo, `1.0.0.md`, `1.1.0.md`) corresponde a una versión específica del juego.
 
-- Puntos de Magia iniciales incrementados a 65.
-- Implementada nueva arquitectura para el versionado y notas del parche.
-- Detalles completos en: [patch_notes/1.1.0.md](./patch_notes/1.1.0.md)
-
-## Versión 1.0
-- Cambios iniciales de jugabilidad y unidades.
-
-### Datos de Unidades (Valores Iniciales)
-
-**Base:**
-- Puntos de Vida (HP): 25
-- Ataque: 0
-- Movimiento: 0
-- Rango: 0
-
-**Guerrero:**
-- Puntos de Vida (HP): 20
-- Ataque: 8
-- Movimiento: 2
-- Rango: 1
-
-**Arquero:**
-- Puntos de Vida (HP): 15
-- Ataque: 6
-- Movimiento: 2
-- Rango: 3
-
-**Gigante:**
-- Puntos de Vida (HP): 35
-- Ataque: 10
-- Movimiento: 1
-- Rango: 1
+Para ver las notas de una versión en particular, por favor navega a dicho directorio o utiliza el visor de notas del parche dentro del juego, el cual carga estas notas dinámicamente.
